@@ -1,0 +1,7 @@
+{
+  "project_name": "LuciferOS v2",
+  "default_provider": "offline",
+  "ollama_model": "qwen3.5:9b",
+  "performance_mode": "instant",
+  "audit_enabled": true
+}
