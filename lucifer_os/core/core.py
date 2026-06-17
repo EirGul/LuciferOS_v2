@@ -5,6 +5,7 @@ from lucifer_os.permissions.engine import PermissionEngine
 from lucifer_os.permissions.risk import PermissionDecision
 from lucifer_os.planning.plan import Plan
 from lucifer_os.planning.planner import Planner
+from lucifer_os.providers.base import Provider
 from lucifer_os.providers.offline import OfflineProvider
 from lucifer_os.response.response import LuciferResponse
 from lucifer_os.routing.intent import Intent
@@ -27,11 +28,12 @@ class CoreResult:
 
 
 class LuciferCore:
-    def __init__(self):
+    def __init__(self, primary_provider: Provider | None = None):
         self.router = IntentRouter()
         self.planner = Planner()
         self.permission_engine = PermissionEngine()
         self.offline_provider = OfflineProvider()
+        self.primary_provider = primary_provider or self.offline_provider
 
     def handle(self, request: CoreRequest) -> CoreResult:
         trace = AuditTrace()
@@ -65,10 +67,7 @@ class LuciferCore:
             },
         )
 
-        if plan.type == 'respond' and permission.allowed:
-            response = self.offline_provider.answer(request.text)
-        else:
-            response = self.offline_provider.answer('')
+        response = self._create_response(request=request, plan=plan, permission=permission, trace=trace)
 
         response = replace(response, trace_id=trace.trace_id)
         trace.record(
@@ -85,3 +84,37 @@ class LuciferCore:
             response=response,
             audit_events=trace.events(),
         )
+
+    def _create_response(
+        self,
+        request: CoreRequest,
+        plan: Plan,
+        permission: PermissionDecision,
+        trace: AuditTrace,
+    ) -> LuciferResponse:
+        if plan.type != 'respond' or not permission.allowed:
+            trace.record(
+                event_type='provider_selected',
+                message='Offline provider selected for non-response plan.',
+                metadata={'provider': self.offline_provider.metadata().name},
+            )
+            return self.offline_provider.answer('')
+
+        provider = self.primary_provider
+        trace.record(
+            event_type='provider_selected',
+            message='Primary provider selected.',
+            metadata={'provider': provider.metadata().name},
+        )
+
+        response = provider.answer(request.text)
+
+        if response.voice_summary.startswith('OllamaProvider feilet trygt:'):
+            trace.record(
+                event_type='provider_fallback',
+                message='Primary provider failed safely. Falling back to offline provider.',
+                metadata={'fallback_provider': self.offline_provider.metadata().name},
+            )
+            return self.offline_provider.answer(request.text)
+
+        return response

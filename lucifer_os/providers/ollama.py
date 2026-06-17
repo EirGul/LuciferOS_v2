@@ -13,7 +13,7 @@ from lucifer_os.response.response import LuciferResponse
 class OllamaConfig:
     base_url: str = 'http://127.0.0.1:11434'
     model: str = 'qwen3.5:9b'
-    timeout_seconds: int = 30
+    timeout_seconds: int = 120
 
 
 class OllamaProvider(Provider):
@@ -53,13 +53,24 @@ class OllamaProvider(Provider):
 
         payload = {
             'model': self.config.model,
-            'prompt': cleaned_prompt,
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': 'Svar kort, tydelig og direkte på norsk. Ikke vis resonnement.',
+                },
+                {
+                    'role': 'user',
+                    'content': cleaned_prompt,
+                },
+            ],
             'stream': False,
+            'think': False,
+            'options': {'num_predict': 256},
         }
 
         try:
             request = Request(
-                f'{self.config.base_url}/api/generate',
+                f'{self.config.base_url}/api/chat',
                 data=json.dumps(payload).encode('utf-8'),
                 headers={'Content-Type': 'application/json'},
                 method='POST',
@@ -67,7 +78,8 @@ class OllamaProvider(Provider):
             with urlopen(request, timeout=self.config.timeout_seconds) as response:
                 body = response.read().decode('utf-8')
                 data = json.loads(body)
-                answer_text = str(data.get('response', '')).strip()
+                message = data.get('message', {})
+                answer_text = str(message.get('content', '')).strip()
 
             if not answer_text:
                 answer_text = 'Ollama svarte, men responsen var tom.'

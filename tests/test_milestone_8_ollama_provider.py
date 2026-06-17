@@ -20,7 +20,7 @@ def test_ollama_provider_default_config():
 
     assert provider.config.base_url == 'http://127.0.0.1:11434'
     assert provider.config.model == 'qwen3.5:9b'
-    assert provider.config.timeout_seconds == 30
+    assert provider.config.timeout_seconds == 120
 
 
 def test_ollama_provider_accepts_custom_config():
@@ -65,10 +65,10 @@ def test_ollama_provider_health_returns_false_when_tags_endpoint_fails():
         assert provider.health() is False
 
 
-def test_ollama_provider_answer_returns_generate_response():
+def test_ollama_provider_answer_returns_chat_response():
     provider = OllamaProvider()
     mock_response = MagicMock()
-    mock_response.read.return_value = b'{"response": "Hei, jeg svarer lokalt."}'
+    mock_response.read.return_value = b'{"message": {"content": "Hei, jeg svarer lokalt."}}'
     mock_response.__enter__.return_value = mock_response
     mock_response.__exit__.return_value = None
 
@@ -85,7 +85,7 @@ def test_ollama_provider_answer_returns_generate_response():
     assert response.trace_id
 
 
-def test_ollama_provider_answer_fails_safely_when_generate_fails():
+def test_ollama_provider_answer_fails_safely_when_chat_fails():
     provider = OllamaProvider()
 
     with patch('lucifer_os.providers.ollama.urlopen', side_effect=OSError('offline')):
