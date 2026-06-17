@@ -161,7 +161,8 @@ class LuciferCore:
             f'Python: {status.python_version}\n'
             f'Active provider: {status.active_provider}\n'
             f'Provider health: {status.provider_health}\n'
-            f'Default provider: {status.default_provider}\n'            f'Ollama model: {status.ollama_model}\n'
+            f'Default provider: {status.default_provider}\n'
+            f'Ollama model: {status.ollama_model}\n'
             f'Performance mode: {status.performance_mode}\n'
             f'Audit enabled: {status.audit_enabled}'
         )

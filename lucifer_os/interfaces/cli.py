@@ -1,15 +1,13 @@
 import sys
 
-from lucifer_os.core.config import ConfigLoader
-from lucifer_os.core.core import CoreRequest, LuciferCore
-from lucifer_os.providers.factory import create_provider
+from lucifer_os.core.core import CoreRequest
+from lucifer_os.core.factory import create_core
 
 
 def run_cli(args: list[str] | None = None) -> int:
     cli_args = list(args if args is not None else sys.argv[1:])
-    config = ConfigLoader(project_root='.').load()
 
-    provider_name = config.default_provider
+    provider_name = None
 
     if len(cli_args) >= 2 and cli_args[0] == '--provider':
         provider_name = cli_args[1].strip().lower()
@@ -22,12 +20,11 @@ def run_cli(args: list[str] | None = None) -> int:
         return 1
 
     try:
-        provider = create_provider(provider_name, config)
+        core = create_core(project_root='.', provider_name=provider_name)
     except ValueError as error:
         print(str(error))
         return 2
 
-    core = LuciferCore(primary_provider=provider, project_root='.')
     result = core.handle(CoreRequest(text=text))
 
     print(result.response.voice_summary)
