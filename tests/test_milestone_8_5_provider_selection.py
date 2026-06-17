@@ -51,6 +51,7 @@ class FailingProvider(FakeProvider):
             requires_confirmation=False,
             risk_level=0,
             action=None,
+            metadata={'provider_error': 'true', 'provider': 'ollama'},
         )
 
 
@@ -87,3 +88,12 @@ def test_core_default_provider_is_offline_provider():
         event.event_type == 'provider_selected' and event.metadata['provider'] == 'offline'
         for event in result.audit_events
     )
+
+
+def test_core_does_not_fallback_when_error_text_has_no_error_metadata():
+    core = LuciferCore(primary_provider=FakeProvider('OllamaProvider feilet trygt: offline'))
+
+    result = core.handle(CoreRequest(text='Hei Lucifer'))
+
+    assert result.response.voice_summary == 'OllamaProvider feilet trygt: offline'
+    assert not any(event.event_type == 'provider_fallback' for event in result.audit_events)

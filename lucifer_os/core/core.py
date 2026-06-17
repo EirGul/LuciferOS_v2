@@ -125,7 +125,7 @@ class LuciferCore:
 
         response = provider.answer(request.text)
 
-        if response.voice_summary.startswith('OllamaProvider feilet trygt:'):
+        if response.metadata.get('provider_error') == 'true':
             trace.record(
                 event_type='provider_fallback',
                 message='Primary provider failed safely. Falling back to offline provider.',

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -10,3 +10,4 @@ class LuciferResponse:
     risk_level: int
     action: str | None
     trace_id: str
+    metadata: dict[str, str] = field(default_factory=dict)

@@ -107,4 +107,5 @@ class OllamaProvider(Provider):
                 requires_confirmation=False,
                 risk_level=0,
                 action=None,
+                metadata={'provider_error': 'true', 'provider': 'ollama'},
             )
