@@ -14,6 +14,7 @@ class DiagnosticsStatus:
     active_provider: str
     provider_health: bool
     default_provider: str
+    ollama_model: str
     performance_mode: str
     audit_enabled: bool
 
@@ -38,6 +39,7 @@ class DiagnosticsService:
             active_provider=self.active_provider.metadata().name,
             provider_health=self.active_provider.health(),
             default_provider=self.config.default_provider,
+            ollama_model=self.config.ollama_model,
             performance_mode=self.config.performance_mode,
             audit_enabled=self.config.audit_enabled,
         )

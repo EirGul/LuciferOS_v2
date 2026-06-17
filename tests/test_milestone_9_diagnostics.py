@@ -24,6 +24,7 @@ def test_diagnostics_status_reports_core_runtime_state():
     assert status.active_provider == 'offline'
     assert status.provider_health is True
     assert status.default_provider == 'offline'
+    assert status.ollama_model == 'qwen3.5:9b'
     assert status.performance_mode == 'instant'
     assert status.audit_enabled is True
 
@@ -47,3 +48,4 @@ def test_diagnostics_status_reports_provider_health_false():
 
     assert status.active_provider == 'offline'
     assert status.provider_health is False
+    assert status.ollama_model == 'qwen3.5:9b'
