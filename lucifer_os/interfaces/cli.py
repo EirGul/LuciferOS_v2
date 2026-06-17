@@ -2,7 +2,7 @@ import sys
 
 from lucifer_os.core.config import ConfigLoader
 from lucifer_os.core.core import CoreRequest, LuciferCore
-from lucifer_os.providers.ollama import OllamaConfig, OllamaProvider
+from lucifer_os.providers.factory import create_provider
 
 
 def run_cli(args: list[str] | None = None) -> int:
@@ -21,15 +21,13 @@ def run_cli(args: list[str] | None = None) -> int:
         print('Bruk: python -m lucifer_os.interfaces.cli --provider ollama <tekst>')
         return 1
 
-    if provider_name == 'offline':
-        core = LuciferCore(project_root='.')
-    elif provider_name == 'ollama':
-        ollama_config = OllamaConfig(model=config.ollama_model)
-        core = LuciferCore(primary_provider=OllamaProvider(config=ollama_config), project_root='.')
-    else:
-        print(f'Ukjent provider: {provider_name}')
+    try:
+        provider = create_provider(provider_name, config)
+    except ValueError as error:
+        print(str(error))
         return 2
 
+    core = LuciferCore(primary_provider=provider, project_root='.')
     result = core.handle(CoreRequest(text=text))
 
     print(result.response.voice_summary)

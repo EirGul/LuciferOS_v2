@@ -43,7 +43,7 @@ def test_cli_rejects_unknown_provider(capsys):
 
 
 def test_cli_accepts_ollama_provider_without_real_http(capsys):
-    with patch('lucifer_os.interfaces.cli.OllamaProvider', return_value=OfflineProvider()):
+    with patch('lucifer_os.providers.factory.OllamaProvider', return_value=OfflineProvider()):
         exit_code = run_cli(['--provider', 'ollama', 'hei', 'lucifer'])
 
     captured = capsys.readouterr()
@@ -62,7 +62,7 @@ def test_cli_uses_config_default_provider_when_no_provider_argument(capsys):
 
 
 def test_cli_provider_argument_overrides_config_default(capsys):
-    with patch('lucifer_os.interfaces.cli.OllamaProvider', return_value=OfflineProvider()):
+    with patch('lucifer_os.providers.factory.OllamaProvider', return_value=OfflineProvider()):
         exit_code = run_cli(['--provider', 'ollama', 'hei'])
 
     captured = capsys.readouterr()
@@ -78,7 +78,7 @@ def test_cli_uses_config_ollama_model_when_creating_ollama_provider(capsys):
         captured_configs.append(config)
         return OfflineProvider()
 
-    with patch('lucifer_os.interfaces.cli.OllamaProvider', side_effect=fake_ollama_provider):
+    with patch('lucifer_os.providers.factory.OllamaProvider', side_effect=fake_ollama_provider):
         exit_code = run_cli(['--provider', 'ollama', 'hei'])
 
     captured = capsys.readouterr()
