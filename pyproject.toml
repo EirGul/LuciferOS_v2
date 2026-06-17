@@ -1,9 +1,9 @@
-﻿[project]
-name = "lucifer-os"
-version = "0.1.0"
-description = "Local-first modular AI agent runtime"
-requires-python = ">=3.11"
+[project]
+name = 'lucifer-os'
+version = '0.1.0'
+description = 'Local-first modular AI agent runtime'
+requires-python = '>=3.11'
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
+pythonpath = ['.']
+testpaths = ['tests']
