@@ -50,3 +50,40 @@ def test_cli_accepts_ollama_provider_without_real_http(capsys):
 
     assert exit_code == 0
     assert 'offline-modus' in captured.out
+
+
+def test_cli_uses_config_default_provider_when_no_provider_argument(capsys):
+    exit_code = run_cli(['hei', 'lucifer'])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert 'offline-modus' in captured.out
+
+
+def test_cli_provider_argument_overrides_config_default(capsys):
+    with patch('lucifer_os.interfaces.cli.OllamaProvider', return_value=OfflineProvider()):
+        exit_code = run_cli(['--provider', 'ollama', 'hei'])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert 'offline-modus' in captured.out
+
+
+def test_cli_uses_config_ollama_model_when_creating_ollama_provider(capsys):
+    captured_configs = []
+
+    def fake_ollama_provider(config):
+        captured_configs.append(config)
+        return OfflineProvider()
+
+    with patch('lucifer_os.interfaces.cli.OllamaProvider', side_effect=fake_ollama_provider):
+        exit_code = run_cli(['--provider', 'ollama', 'hei'])
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert 'offline-modus' in captured.out
+    assert captured_configs
+    assert captured_configs[0].model == 'qwen3.5:9b'
