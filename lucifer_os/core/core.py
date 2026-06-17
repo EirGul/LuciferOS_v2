@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from lucifer_os.audit.trace import AuditEvent, AuditTrace
 from lucifer_os.core.config import ConfigLoader
@@ -19,6 +19,9 @@ from lucifer_os.routing.router import IntentRouter
 @dataclass(frozen=True)
 class CoreRequest:
     text: str
+    interface: str = 'cli'
+    session_id: str | None = None
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -46,7 +49,12 @@ class LuciferCore:
         trace.record(
             event_type='request_received',
             message='Core request received.',
-            metadata={'text': request.text},
+            metadata={
+                'text': request.text,
+                'interface': request.interface,
+                'session_id': str(request.session_id),
+                'request_metadata': str(request.metadata),
+            },
         )
 
         intent = self.router.route(request.text)
