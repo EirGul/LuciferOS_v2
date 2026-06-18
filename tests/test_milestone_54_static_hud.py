@@ -61,3 +61,33 @@ def test_static_hud_css_contains_card_and_badge_styles():
     assert '.badge-offline' in css
     assert '.status-card' in css
     assert '.response-card' in css
+
+
+def test_static_hud_has_face_layout_foundation():
+    html = (HUD_ROOT / 'index.html').read_text(encoding='utf-8')
+    css = (HUD_ROOT / 'style.css').read_text(encoding='utf-8')
+
+    assert 'Lucifer Face' in html
+    assert 'face-stage' in html
+    assert 'face-core' in html
+    assert '.face-panel' in css
+    assert '.face-stage' in css
+    assert '.face-core' in css
+    assert '.mouth' in css
+
+
+def test_static_hud_uses_layout_sections_without_changing_js_contract():
+    html = (HUD_ROOT / 'index.html').read_text(encoding='utf-8')
+
+    assert 'hud-topbar' in html
+    assert 'hud-grid' in html
+    assert 'healthButton' in html
+    assert 'healthBadge' in html
+    assert 'healthStatus' in html
+    assert 'healthProvider' in html
+    assert 'healthAdapter' in html
+    assert 'chatInput' in html
+    assert 'chatButton' in html
+    assert 'voiceOutput' in html
+    assert 'visualOutput' in html
+    assert 'traceOutput' in html

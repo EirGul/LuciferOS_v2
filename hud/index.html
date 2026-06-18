@@ -7,20 +7,40 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="shell">
-    <section class="panel header-panel">
-      <p class="eyebrow">LuciferOS</p>
-      <h1>HUD Preview</h1>
-      <p class="subtitle">Static HUD skeleton connected to the local LuciferOS API.</p>
-    </section>
+  <main class="hud-shell">
+    <header class="hud-topbar">
+      <div>
+        <p class="eyebrow">LuciferOS</p>
+        <h1>HUD</h1>
+      </div>
+      <div class="topbar-status">
+        <span id="healthBadge" class="badge badge-muted">not checked</span>
+      </div>
+    </header>
 
-    <section class="grid">
-      <section class="panel">
+    <section class="hud-grid">
+      <section class="panel face-panel">
+        <div class="panel-title-row">
+          <h2>Lucifer Face</h2>
+          <span class="mini-label">placeholder</span>
+        </div>
+
+        <div class="face-stage" aria-label="Lucifer visual avatar placeholder">
+          <div class="face-core">
+            <div class="eye eye-left"></div>
+            <div class="eye eye-right"></div>
+            <div class="mouth"></div>
+          </div>
+        </div>
+
+        <p class="message">Face state will later follow API status, thinking and speaking state.</p>
+      </section>
+
+      <section class="panel health-panel">
         <div class="panel-title-row">
           <h2>API Health</h2>
-          <span id="healthBadge" class="badge badge-muted">not checked</span>
+          <button id="healthButton">Check API</button>
         </div>
-        <button id="healthButton">Check API</button>
 
         <div class="status-grid">
           <div class="status-card">
@@ -40,7 +60,7 @@
         <p id="healthMessage" class="message">API health has not been checked yet.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel chat-panel">
         <h2>Chat</h2>
         <div class="chat-row">
           <input id="chatInput" type="text" value="Hei Lucifer" aria-label="Chat text">
