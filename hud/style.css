@@ -484,3 +484,16 @@ input {
   border-color: var(--face-error);
   box-shadow: 0 0 24px rgba(255, 77, 94, 0.68);
 }
+
+/* Runtime badges */
+.runtime-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.badge-provider-ollama {
+  background: rgba(56, 242, 161, 0.18);
+  color: var(--face-chat);
+}

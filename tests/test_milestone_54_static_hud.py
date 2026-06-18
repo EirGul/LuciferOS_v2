@@ -170,3 +170,20 @@ def test_static_hud_face_design_contract_is_documented_in_css():
     assert '--face-chat: #38f2a1;' in css
     assert '--face-offline: #6f8799;' in css
     assert '--face-error: #ff4d5e;' in css
+
+
+def test_static_hud_shows_runtime_provider_badges():
+    html = (HUD_ROOT / 'index.html').read_text(encoding='utf-8')
+    js = (HUD_ROOT / 'app.js').read_text(encoding='utf-8')
+    css = (HUD_ROOT / 'style.css').read_text(encoding='utf-8')
+
+    assert 'providerBadge' in html
+    assert 'adapterBadge' in html
+    assert 'runtime-badges' in html
+    assert 'const providerBadge' in js
+    assert 'const adapterBadge' in js
+    assert 'function setRuntimeBadges' in js
+    assert 'data.provider_name' in js
+    assert 'data.adapter_name' in js
+    assert '.runtime-badges' in css
+    assert '.badge-provider-ollama' in css

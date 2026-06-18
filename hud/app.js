@@ -4,6 +4,8 @@ const SPEAKING_RETURN_DELAY_MS = 1400;
 const faceCore = document.getElementById("faceCore");
 const healthButton = document.getElementById("healthButton");
 const healthBadge = document.getElementById("healthBadge");
+const providerBadge = document.getElementById("providerBadge");
+const adapterBadge = document.getElementById("adapterBadge");
 const healthStatus = document.getElementById("healthStatus");
 const healthProvider = document.getElementById("healthProvider");
 const healthAdapter = document.getElementById("healthAdapter");
@@ -26,6 +28,16 @@ function returnFaceToOnlineAfterSpeaking() {
   }, SPEAKING_RETURN_DELAY_MS);
 }
 
+function setRuntimeBadges(providerName, adapterName) {
+  const provider = providerName || "offline";
+  const adapter = adapterName || "unknown";
+
+  providerBadge.textContent = "provider: " + provider;
+  adapterBadge.textContent = "adapter: " + adapter;
+
+  providerBadge.className = provider === "ollama" ? "badge badge-provider-ollama" : "badge badge-muted";
+  adapterBadge.className = "badge badge-muted";
+}
 function setHealthBadge(online) {
   healthBadge.textContent = online ? "online" : "offline";
   healthBadge.className = online ? "badge badge-online" : "badge badge-offline";

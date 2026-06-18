@@ -10,7 +10,7 @@ from lucifer_os.interfaces.api_server import create_api_app
 
 
 def test_api_server_health_endpoint():
-    client = TestClient(create_api_app())
+    client = TestClient(create_api_app(provider_name='offline'))
 
     response = client.get('/health')
 
@@ -22,7 +22,7 @@ def test_api_server_health_endpoint():
 
 
 def test_api_server_chat_endpoint():
-    client = TestClient(create_api_app())
+    client = TestClient(create_api_app(provider_name='offline'))
 
     response = client.post('/chat', json={'text': 'Hei Lucifer'})
 
@@ -34,7 +34,7 @@ def test_api_server_chat_endpoint():
 
 
 def test_api_server_chat_endpoint_accepts_session_and_metadata():
-    client = TestClient(create_api_app())
+    client = TestClient(create_api_app(provider_name='offline'))
 
     response = client.post(
         '/chat',
@@ -68,7 +68,7 @@ def test_api_server_has_main_entrypoint():
 
 
 def test_api_server_allows_cors_preflight_for_chat():
-    client = TestClient(create_api_app())
+    client = TestClient(create_api_app(provider_name='offline'))
 
     response = client.options(
         '/chat',
