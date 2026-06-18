@@ -111,3 +111,13 @@ def test_static_hud_face_has_state_contract():
     assert '.face-offline' in css
     assert '.face-speaking' in css
     assert '.face-error' in css
+
+
+def test_static_hud_has_speaking_pulse_animation():
+    css = (HUD_ROOT / 'style.css').read_text(encoding='utf-8')
+
+    assert '@keyframes speakingPulse' in css
+    assert '@keyframes mouthTalk' in css
+    assert 'animation: speakingPulse' in css
+    assert 'animation: mouthTalk' in css
+    assert '.face-speaking .mouth' in css

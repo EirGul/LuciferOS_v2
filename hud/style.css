@@ -313,3 +313,50 @@ input {
   border-color: #ff8f8f;
   box-shadow: 0 0 18px rgba(255, 80, 80, 0.45);
 }
+
+/* Speaking animation */
+@keyframes speakingPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 45px rgba(115, 255, 216, 0.18);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow: 0 0 78px rgba(115, 255, 216, 0.42);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 45px rgba(115, 255, 216, 0.18);
+  }
+}
+
+@keyframes mouthTalk {
+  0% {
+    height: 10px;
+    width: 54px;
+  }
+  35% {
+    height: 32px;
+    width: 44px;
+  }
+  70% {
+    height: 18px;
+    width: 64px;
+  }
+  100% {
+    height: 10px;
+    width: 54px;
+  }
+}
+
+.face-speaking {
+  animation: speakingPulse 1.05s ease-in-out infinite;
+}
+
+.face-speaking .mouth {
+  animation: mouthTalk 0.42s ease-in-out infinite;
+}
+
+.face-speaking .eye {
+  opacity: 0.95;
+}
