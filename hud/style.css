@@ -268,3 +268,48 @@ input {
     grid-template-columns: 1fr;
   }
 }
+
+/* Face states */
+.face-idle {
+  opacity: 0.82;
+}
+
+.face-online {
+  border-color: rgba(115, 255, 216, 0.75);
+  box-shadow: 0 0 55px rgba(115, 255, 216, 0.24);
+}
+
+.face-offline {
+  border-color: rgba(167, 187, 182, 0.28);
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+.face-offline .eye,
+.face-offline .mouth {
+  background: var(--muted);
+  border-color: var(--muted);
+  box-shadow: none;
+}
+
+.face-speaking {
+  border-color: rgba(115, 255, 216, 0.95);
+  box-shadow: 0 0 70px rgba(115, 255, 216, 0.36);
+}
+
+.face-speaking .mouth {
+  height: 28px;
+  border-radius: 42% 42% 55% 55%;
+}
+
+.face-error {
+  border-color: rgba(255, 120, 120, 0.72);
+  box-shadow: 0 0 55px rgba(255, 80, 80, 0.18);
+}
+
+.face-error .eye,
+.face-error .mouth {
+  background: #ff8f8f;
+  border-color: #ff8f8f;
+  box-shadow: 0 0 18px rgba(255, 80, 80, 0.45);
+}

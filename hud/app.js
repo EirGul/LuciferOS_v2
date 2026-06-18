@@ -1,5 +1,6 @@
 const API_BASE_URL = "http://127.0.0.1:8787";
 
+const faceCore = document.getElementById("faceCore");
 const healthButton = document.getElementById("healthButton");
 const healthBadge = document.getElementById("healthBadge");
 const healthStatus = document.getElementById("healthStatus");
@@ -12,6 +13,12 @@ const voiceOutput = document.getElementById("voiceOutput");
 const visualOutput = document.getElementById("visualOutput");
 const traceOutput = document.getElementById("traceOutput");
 
+function setFaceState(state) {
+  const allowedStates = ["idle", "online", "offline", "speaking", "error"];
+  const nextState = allowedStates.includes(state) ? state : "idle";
+  faceCore.className = "face-core face-" + nextState;
+}
+
 function setHealthBadge(online) {
   healthBadge.textContent = online ? "online" : "offline";
   healthBadge.className = online ? "badge badge-online" : "badge badge-offline";
@@ -21,6 +28,7 @@ function renderHealth(data) {
   const online = Boolean(data.app_ready);
 
   setHealthBadge(online);
+  setFaceState(online ? "online" : "offline");
   healthStatus.textContent = online ? "Online" : "Offline";
   healthProvider.textContent = data.provider_name || "None";
   healthAdapter.textContent = data.adapter_name || "Unknown";
@@ -29,6 +37,7 @@ function renderHealth(data) {
 
 function renderHealthError(error) {
   setHealthBadge(false);
+  setFaceState("error");
   healthStatus.textContent = "Offline";
   healthProvider.textContent = "Unknown";
   healthAdapter.textContent = "Unknown";
@@ -36,12 +45,14 @@ function renderHealthError(error) {
 }
 
 function renderChat(data) {
+  setFaceState("speaking");
   voiceOutput.textContent = data.voice_summary || "No voice summary returned.";
   visualOutput.textContent = data.visual_text || "No visual response returned.";
   traceOutput.textContent = "trace_id: " + (data.trace_id || "none");
 }
 
 function renderChatError(error) {
+  setFaceState("error");
   voiceOutput.textContent = "Chat request failed.";
   visualOutput.textContent = String(error);
   traceOutput.textContent = "trace_id: none";
@@ -69,6 +80,7 @@ async function sendChat() {
     return;
   }
 
+  setFaceState("speaking");
   voiceOutput.textContent = "Sending...";
   visualOutput.textContent = "Waiting for LuciferOS API...";
   traceOutput.textContent = "trace_id: pending";

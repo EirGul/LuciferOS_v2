@@ -91,3 +91,23 @@ def test_static_hud_uses_layout_sections_without_changing_js_contract():
     assert 'voiceOutput' in html
     assert 'visualOutput' in html
     assert 'traceOutput' in html
+
+
+def test_static_hud_face_has_state_contract():
+    html = (HUD_ROOT / 'index.html').read_text(encoding='utf-8')
+    js = (HUD_ROOT / 'app.js').read_text(encoding='utf-8')
+    css = (HUD_ROOT / 'style.css').read_text(encoding='utf-8')
+
+    assert 'id="faceCore"' in html
+    assert 'face-idle' in html
+    assert 'function setFaceState(state)' in js
+    assert '"online"' in js
+    assert '"offline"' in js
+    assert '"speaking"' in js
+    assert '"error"' in js
+    assert 'face-core face-' in js
+    assert '.face-idle' in css
+    assert '.face-online' in css
+    assert '.face-offline' in css
+    assert '.face-speaking' in css
+    assert '.face-error' in css
