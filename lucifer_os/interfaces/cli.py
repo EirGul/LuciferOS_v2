@@ -1,7 +1,6 @@
 import sys
 
-from lucifer_os.interfaces.base import InterfaceInput
-from lucifer_os.interfaces.factory import create_interface_adapter
+from lucifer_os.runtime.app import LuciferApp
 
 
 def run_cli(args: list[str] | None = None) -> int:
@@ -20,17 +19,16 @@ def run_cli(args: list[str] | None = None) -> int:
         return 1
 
     try:
-        adapter = create_interface_adapter('cli', project_root='.', provider_name=provider_name)
+        app = LuciferApp(
+            project_root='.',
+            interface_name='cli',
+            provider_name=provider_name,
+        )
     except ValueError as error:
         print(str(error))
         return 2
 
-    output = adapter.handle_input(
-        InterfaceInput(
-            text=text,
-            interface='cli',
-        )
-    )
+    output = app.handle_text(text)
 
     print(output.voice_summary)
 
