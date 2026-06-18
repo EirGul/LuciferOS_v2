@@ -1,7 +1,7 @@
 import sys
 
 from lucifer_os.interfaces.base import InterfaceInput
-from lucifer_os.interfaces.cli_adapter import CliAdapter
+from lucifer_os.interfaces.factory import create_interface_adapter
 
 
 def run_cli(args: list[str] | None = None) -> int:
@@ -20,7 +20,7 @@ def run_cli(args: list[str] | None = None) -> int:
         return 1
 
     try:
-        adapter = CliAdapter(project_root='.', provider_name=provider_name)
+        adapter = create_interface_adapter('cli', project_root='.', provider_name=provider_name)
     except ValueError as error:
         print(str(error))
         return 2
