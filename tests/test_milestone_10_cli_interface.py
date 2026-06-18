@@ -138,3 +138,54 @@ def test_cli_api_mode_keeps_empty_text_validation(capsys):
     captured = capsys.readouterr()
     assert exit_code == 1
     assert '--api' in captured.out
+
+
+def test_cli_api_health_prints_health_response(capsys, monkeypatch):
+    from lucifer_os.interfaces.api_schema import ApiHealthResponse
+    from lucifer_os.interfaces.cli import run_cli
+
+    class FakeClient:
+        def health(self):
+            return ApiHealthResponse(
+                app_ready=True,
+                project_root='.',
+                interface_name='api',
+                provider_name=None,
+                adapter_name='api',
+            )
+
+    monkeypatch.setattr('lucifer_os.interfaces.cli.LuciferApiClient', FakeClient)
+
+    exit_code = run_cli(['--api-health'])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert 'app_ready: True' in captured.out
+    assert 'interface_name: api' in captured.out
+    assert 'adapter_name: api' in captured.out
+
+
+def test_cli_api_health_returns_error_when_api_is_unavailable(capsys, monkeypatch):
+    from lucifer_os.interfaces.cli import run_cli
+
+    class FakeClient:
+        def health(self):
+            raise ConnectionError('Kunne ikke kontakte LuciferOS API')
+
+    monkeypatch.setattr('lucifer_os.interfaces.cli.LuciferApiClient', FakeClient)
+
+    exit_code = run_cli(['--api-health'])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert 'Kunne ikke kontakte LuciferOS API' in captured.out
+
+
+def test_cli_help_mentions_api_health(capsys):
+    from lucifer_os.interfaces.cli import run_cli
+
+    exit_code = run_cli([])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert '--api-health' in captured.out

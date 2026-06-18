@@ -10,6 +10,20 @@ def run_cli(args: list[str] | None = None) -> int:
     provider_name = None
     use_api = False
 
+    if cli_args and cli_args[0] == '--api-health':
+        try:
+            health = LuciferApiClient().health()
+        except ConnectionError as error:
+            print(str(error))
+            return 2
+
+        print(f'app_ready: {health.app_ready}')
+        print(f'project_root: {health.project_root}')
+        print(f'interface_name: {health.interface_name}')
+        print(f'provider_name: {health.provider_name}')
+        print(f'adapter_name: {health.adapter_name}')
+        return 0
+
     if cli_args and cli_args[0] == '--api':
         use_api = True
         cli_args = cli_args[1:]
@@ -21,7 +35,7 @@ def run_cli(args: list[str] | None = None) -> int:
     text = ' '.join(cli_args).strip()
 
     if not text:
-        print('Bruk: python -m lucifer_os.interfaces.cli [--api] [--provider ollama] <tekst>')
+        print('Bruk: python -m lucifer_os.interfaces.cli [--api] [--api-health] [--provider ollama] <tekst>')
         return 1
 
     try:
