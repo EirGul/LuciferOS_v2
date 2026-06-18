@@ -12,6 +12,7 @@ from lucifer_os.providers.base import Provider
 from lucifer_os.providers.offline import OfflineProvider
 from lucifer_os.response.builder import ResponseBuilder
 from lucifer_os.response.response import LuciferResponse
+from lucifer_os.response.target import normalize_response_channel
 from lucifer_os.routing.intent import Intent
 from lucifer_os.routing.router import IntentRouter
 
@@ -89,7 +90,11 @@ class LuciferCore:
             trace=trace,
         )
 
-        response = replace(response, trace_id=trace.trace_id)
+        response = replace(
+            response,
+            visual_channel=normalize_response_channel(request.interface),
+            trace_id=trace.trace_id,
+        )
         trace.record(
             event_type='response_created',
             message='Response created.',
