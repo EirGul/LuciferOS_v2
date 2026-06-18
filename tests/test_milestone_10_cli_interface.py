@@ -87,3 +87,54 @@ def test_cli_uses_config_ollama_model_when_creating_ollama_provider(capsys):
     assert 'offline-modus' in captured.out
     assert captured_configs
     assert captured_configs[0].model == 'qwen3.5:9b'
+
+
+def test_cli_api_mode_uses_api_client(capsys, monkeypatch):
+    from lucifer_os.interfaces.api_schema import ApiChatResponse
+    from lucifer_os.interfaces.cli import run_cli
+
+    class FakeClient:
+        def chat(self, text):
+            assert text == 'Hei Lucifer'
+            return ApiChatResponse(
+                voice_summary='api kort svar',
+                visual_text='api langt svar',
+                visual_channel='api',
+                trace_id='trace-api',
+                metadata={},
+            )
+
+    monkeypatch.setattr('lucifer_os.interfaces.cli.LuciferApiClient', FakeClient)
+
+    exit_code = run_cli(['--api', 'Hei', 'Lucifer'])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert 'api kort svar' in captured.out
+    assert 'api langt svar' in captured.out
+
+
+def test_cli_api_mode_returns_error_when_api_is_unavailable(capsys, monkeypatch):
+    from lucifer_os.interfaces.cli import run_cli
+
+    class FakeClient:
+        def chat(self, text):
+            raise ConnectionError('Kunne ikke kontakte LuciferOS API')
+
+    monkeypatch.setattr('lucifer_os.interfaces.cli.LuciferApiClient', FakeClient)
+
+    exit_code = run_cli(['--api', 'Hei', 'Lucifer'])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert 'Kunne ikke kontakte LuciferOS API' in captured.out
+
+
+def test_cli_api_mode_keeps_empty_text_validation(capsys):
+    from lucifer_os.interfaces.cli import run_cli
+
+    exit_code = run_cli(['--api'])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert '--api' in captured.out
