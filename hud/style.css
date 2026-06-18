@@ -391,11 +391,20 @@ input {
   width: 46px;
 }
 
-/* Distinct face state colors */
+
+/* Lucifer face design contract
+   online   = blue
+   thinking = yellow
+   speaking = purple
+   chat     = green
+   offline  = grey-blue
+   error    = red
+*/
 :root {
   --face-online: #4da3ff;
   --face-thinking: #ffd660;
   --face-speaking: #b45cff;
+  --face-chat: #38f2a1;
   --face-offline: #6f8799;
   --face-error: #ff4d5e;
 }
