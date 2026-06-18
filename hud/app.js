@@ -1,4 +1,5 @@
 const API_BASE_URL = "http://127.0.0.1:8787";
+const SPEAKING_RETURN_DELAY_MS = 1400;
 
 const faceCore = document.getElementById("faceCore");
 const healthButton = document.getElementById("healthButton");
@@ -17,6 +18,12 @@ function setFaceState(state) {
   const allowedStates = ["idle", "online", "offline", "speaking", "error"];
   const nextState = allowedStates.includes(state) ? state : "idle";
   faceCore.className = "face-core face-" + nextState;
+}
+
+function returnFaceToOnlineAfterSpeaking() {
+  window.setTimeout(function() {
+    setFaceState("online");
+  }, SPEAKING_RETURN_DELAY_MS);
 }
 
 function setHealthBadge(online) {
@@ -49,6 +56,7 @@ function renderChat(data) {
   voiceOutput.textContent = data.voice_summary || "No voice summary returned.";
   visualOutput.textContent = data.visual_text || "No visual response returned.";
   traceOutput.textContent = "trace_id: " + (data.trace_id || "none");
+  returnFaceToOnlineAfterSpeaking();
 }
 
 function renderChatError(error) {

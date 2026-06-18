@@ -121,3 +121,13 @@ def test_static_hud_has_speaking_pulse_animation():
     assert 'animation: speakingPulse' in css
     assert 'animation: mouthTalk' in css
     assert '.face-speaking .mouth' in css
+
+
+def test_static_hud_returns_face_to_online_after_speaking():
+    js = (HUD_ROOT / 'app.js').read_text(encoding='utf-8')
+
+    assert 'SPEAKING_RETURN_DELAY_MS' in js
+    assert 'function returnFaceToOnlineAfterSpeaking()' in js
+    assert 'window.setTimeout' in js
+    assert 'setFaceState("online")' in js
+    assert 'returnFaceToOnlineAfterSpeaking();' in js
