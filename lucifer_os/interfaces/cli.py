@@ -1,7 +1,7 @@
 import sys
 
-from lucifer_os.core.core import CoreRequest
-from lucifer_os.core.factory import create_core
+from lucifer_os.interfaces.base import InterfaceInput
+from lucifer_os.interfaces.cli_adapter import CliAdapter
 
 
 def run_cli(args: list[str] | None = None) -> int:
@@ -20,18 +20,23 @@ def run_cli(args: list[str] | None = None) -> int:
         return 1
 
     try:
-        core = create_core(project_root='.', provider_name=provider_name)
+        adapter = CliAdapter(project_root='.', provider_name=provider_name)
     except ValueError as error:
         print(str(error))
         return 2
 
-    result = core.handle(CoreRequest(text=text))
+    output = adapter.handle_input(
+        InterfaceInput(
+            text=text,
+            interface='cli',
+        )
+    )
 
-    print(result.response.voice_summary)
+    print(output.voice_summary)
 
-    if result.response.visual_text != result.response.voice_summary:
+    if output.visual_text != output.voice_summary:
         print()
-        print(result.response.visual_text)
+        print(output.visual_text)
 
     return 0
 
