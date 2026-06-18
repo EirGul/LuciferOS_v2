@@ -1,4 +1,10 @@
-from fastapi.testclient import TestClient
+import warnings
+
+from starlette.exceptions import StarletteDeprecationWarning
+
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore', StarletteDeprecationWarning)
+    from fastapi.testclient import TestClient
 
 from lucifer_os.interfaces.api_server import create_api_app
 
