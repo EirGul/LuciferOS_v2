@@ -138,3 +138,47 @@ def test_api_client_raises_connection_error_when_api_is_unavailable(monkeypatch)
 
     with pytest.raises(ConnectionError):
         LuciferApiClient().health()
+
+
+def test_api_client_uses_environment_base_url(monkeypatch):
+    monkeypatch.setenv('LUCIFER_API_URL', 'http://localhost:7777')
+
+    def fake_urlopen(request, timeout):
+        assert request.full_url == 'http://localhost:7777/health'
+        return FakeHttpResponse(
+            {
+                'app_ready': True,
+                'project_root': '.',
+                'interface_name': 'api',
+                'provider_name': None,
+                'adapter_name': 'api',
+            }
+        )
+
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+
+    response = LuciferApiClient().health()
+
+    assert response.app_ready is True
+
+
+def test_api_client_explicit_base_url_overrides_environment(monkeypatch):
+    monkeypatch.setenv('LUCIFER_API_URL', 'http://localhost:7777')
+
+    def fake_urlopen(request, timeout):
+        assert request.full_url == 'http://localhost:8888/health'
+        return FakeHttpResponse(
+            {
+                'app_ready': True,
+                'project_root': '.',
+                'interface_name': 'api',
+                'provider_name': 'offline',
+                'adapter_name': 'api',
+            }
+        )
+
+    monkeypatch.setattr('urllib.request.urlopen', fake_urlopen)
+
+    response = LuciferApiClient(base_url='http://localhost:8888').health()
+
+    assert response.provider_name == 'offline'

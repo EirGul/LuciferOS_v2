@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Any
 from urllib import request as urllib_request
 from urllib.error import URLError
@@ -6,13 +7,17 @@ from urllib.error import URLError
 from lucifer_os.interfaces.api_schema import ApiChatResponse, ApiHealthResponse
 
 
+DEFAULT_API_URL = 'http://127.0.0.1:8787'
+
+
 class LuciferApiClient:
     def __init__(
         self,
-        base_url: str = 'http://127.0.0.1:8787',
+        base_url: str | None = None,
         timeout: float = 5.0,
     ):
-        self.base_url = base_url.rstrip('/')
+        resolved_base_url = base_url or os.environ.get('LUCIFER_API_URL') or DEFAULT_API_URL
+        self.base_url = resolved_base_url.rstrip('/')
         self.timeout = timeout
 
     def health(self) -> ApiHealthResponse:
