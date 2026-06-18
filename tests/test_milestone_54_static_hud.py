@@ -143,3 +143,18 @@ def test_static_hud_face_has_thinking_state():
     assert '.face-thinking' in css
     assert '@keyframes thinkingGlow' in css
     assert '#ffd660' in css
+
+
+def test_static_hud_face_states_have_distinct_colors():
+    css = (HUD_ROOT / 'style.css').read_text(encoding='utf-8')
+
+    assert '--face-online: #4da3ff;' in css
+    assert '--face-thinking: #ffd660;' in css
+    assert '--face-speaking: #b45cff;' in css
+    assert '--face-offline: #6f8799;' in css
+    assert '--face-error: #ff4d5e;' in css
+    assert '.face-core.face-online' in css
+    assert '.face-core.face-thinking' in css
+    assert '.face-core.face-speaking' in css
+    assert '.face-core.face-offline' in css
+    assert '.face-core.face-error' in css

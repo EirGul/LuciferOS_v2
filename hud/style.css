@@ -390,3 +390,88 @@ input {
   height: 10px;
   width: 46px;
 }
+
+/* Distinct face state colors */
+:root {
+  --face-online: #4da3ff;
+  --face-thinking: #ffd660;
+  --face-speaking: #b45cff;
+  --face-offline: #6f8799;
+  --face-error: #ff4d5e;
+}
+
+@keyframes speakingPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 45px rgba(180, 92, 255, 0.18);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow: 0 0 78px rgba(180, 92, 255, 0.46);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 45px rgba(180, 92, 255, 0.18);
+  }
+}
+
+.face-core.face-online {
+  border-color: var(--face-online);
+  box-shadow: 0 0 58px rgba(77, 163, 255, 0.34);
+}
+
+.face-core.face-online .eye,
+.face-core.face-online .mouth {
+  background: var(--face-online);
+  border-color: var(--face-online);
+  box-shadow: 0 0 20px rgba(77, 163, 255, 0.62);
+}
+
+.face-core.face-thinking {
+  border-color: var(--face-thinking);
+  box-shadow: 0 0 64px rgba(255, 214, 96, 0.38);
+}
+
+.face-core.face-thinking .eye,
+.face-core.face-thinking .mouth {
+  background: var(--face-thinking);
+  border-color: var(--face-thinking);
+  box-shadow: 0 0 20px rgba(255, 214, 96, 0.62);
+}
+
+.face-core.face-speaking {
+  border-color: var(--face-speaking);
+  box-shadow: 0 0 72px rgba(180, 92, 255, 0.44);
+}
+
+.face-core.face-speaking .eye,
+.face-core.face-speaking .mouth {
+  background: var(--face-speaking);
+  border-color: var(--face-speaking);
+  box-shadow: 0 0 24px rgba(180, 92, 255, 0.72);
+}
+
+.face-core.face-offline {
+  border-color: var(--face-offline);
+  box-shadow: 0 0 24px rgba(111, 135, 153, 0.18);
+  opacity: 0.64;
+}
+
+.face-core.face-offline .eye,
+.face-core.face-offline .mouth {
+  background: var(--face-offline);
+  border-color: var(--face-offline);
+  box-shadow: 0 0 12px rgba(111, 135, 153, 0.32);
+}
+
+.face-core.face-error {
+  border-color: var(--face-error);
+  box-shadow: 0 0 68px rgba(255, 77, 94, 0.42);
+}
+
+.face-core.face-error .eye,
+.face-core.face-error .mouth {
+  background: var(--face-error);
+  border-color: var(--face-error);
+  box-shadow: 0 0 24px rgba(255, 77, 94, 0.68);
+}
