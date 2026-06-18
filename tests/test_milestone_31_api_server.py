@@ -43,3 +43,19 @@ def test_api_server_chat_endpoint_accepts_session_and_metadata():
     data = response.json()
     assert data['visual_channel'] == 'api'
     assert data['trace_id']
+
+
+def test_api_server_module_exposes_importable_app():
+    from lucifer_os.interfaces.api_server import app
+
+    client = TestClient(app)
+    response = client.get('/health')
+
+    assert response.status_code == 200
+    assert response.json()['app_ready'] is True
+
+
+def test_api_server_has_main_entrypoint():
+    from lucifer_os.interfaces import api_server
+
+    assert callable(api_server.main)
