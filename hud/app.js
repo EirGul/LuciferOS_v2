@@ -1,24 +1,61 @@
 const API_BASE_URL = "http://127.0.0.1:8787";
 
 const healthButton = document.getElementById("healthButton");
-const healthOutput = document.getElementById("healthOutput");
+const healthBadge = document.getElementById("healthBadge");
+const healthStatus = document.getElementById("healthStatus");
+const healthProvider = document.getElementById("healthProvider");
+const healthAdapter = document.getElementById("healthAdapter");
+const healthMessage = document.getElementById("healthMessage");
 const chatButton = document.getElementById("chatButton");
 const chatInput = document.getElementById("chatInput");
-const chatOutput = document.getElementById("chatOutput");
+const voiceOutput = document.getElementById("voiceOutput");
+const visualOutput = document.getElementById("visualOutput");
+const traceOutput = document.getElementById("traceOutput");
 
-function formatJson(data) {
-  return JSON.stringify(data, null, 2);
+function setHealthBadge(online) {
+  healthBadge.textContent = online ? "online" : "offline";
+  healthBadge.className = online ? "badge badge-online" : "badge badge-offline";
+}
+
+function renderHealth(data) {
+  const online = Boolean(data.app_ready);
+
+  setHealthBadge(online);
+  healthStatus.textContent = online ? "Online" : "Offline";
+  healthProvider.textContent = data.provider_name || "None";
+  healthAdapter.textContent = data.adapter_name || "Unknown";
+  healthMessage.textContent = "LuciferOS API responded successfully.";
+}
+
+function renderHealthError(error) {
+  setHealthBadge(false);
+  healthStatus.textContent = "Offline";
+  healthProvider.textContent = "Unknown";
+  healthAdapter.textContent = "Unknown";
+  healthMessage.textContent = "API health check failed: " + error;
+}
+
+function renderChat(data) {
+  voiceOutput.textContent = data.voice_summary || "No voice summary returned.";
+  visualOutput.textContent = data.visual_text || "No visual response returned.";
+  traceOutput.textContent = "trace_id: " + (data.trace_id || "none");
+}
+
+function renderChatError(error) {
+  voiceOutput.textContent = "Chat request failed.";
+  visualOutput.textContent = String(error);
+  traceOutput.textContent = "trace_id: none";
 }
 
 async function checkHealth() {
-  healthOutput.textContent = "Checking API...";
+  healthMessage.textContent = "Checking API...";
 
   try {
     const response = await fetch(API_BASE_URL + "/health");
     const data = await response.json();
-    healthOutput.textContent = formatJson(data);
+    renderHealth(data);
   } catch (error) {
-    healthOutput.textContent = "API health check failed: " + error;
+    renderHealthError(error);
   }
 }
 
@@ -26,11 +63,15 @@ async function sendChat() {
   const text = chatInput.value.trim();
 
   if (!text) {
-    chatOutput.textContent = "Write a message first.";
+    voiceOutput.textContent = "Write a message first.";
+    visualOutput.textContent = "No request sent.";
+    traceOutput.textContent = "trace_id: none";
     return;
   }
 
-  chatOutput.textContent = "Sending...";
+  voiceOutput.textContent = "Sending...";
+  visualOutput.textContent = "Waiting for LuciferOS API...";
+  traceOutput.textContent = "trace_id: pending";
 
   try {
     const response = await fetch(API_BASE_URL + "/chat", {
@@ -47,9 +88,9 @@ async function sendChat() {
     });
 
     const data = await response.json();
-    chatOutput.textContent = formatJson(data);
+    renderChat(data);
   } catch (error) {
-    chatOutput.textContent = "Chat request failed: " + error;
+    renderChatError(error);
   }
 }
 

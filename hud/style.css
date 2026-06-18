@@ -44,8 +44,7 @@ h1, h2 {
   margin: 0 0 12px;
 }
 
-.subtitle {
-  margin: 0;
+.subtitle, .message, .trace {
   color: #a7bbb6;
 }
 
@@ -53,6 +52,31 @@ h1, h2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-online {
+  background: rgba(115, 255, 216, 0.18);
+  color: #73ffd8;
+}
+
+.badge-offline, .badge-muted {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a7bbb6;
 }
 
 button {
@@ -80,23 +104,46 @@ input {
   gap: 10px;
 }
 
-pre {
-  min-height: 120px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  margin: 16px 0 0;
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.status-card, .response-card {
+  border: 1px solid rgba(115, 255, 216, 0.16);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.26);
   padding: 14px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  color: #d9fff5;
+}
+
+.response-card {
+  margin-top: 16px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  color: #73ffd8;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.response-card p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.trace {
+  margin: 14px 0 0;
+  font-size: 12px;
+  word-break: break-all;
 }
 
 @media (max-width: 760px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .chat-row {
+  .grid, .chat-row, .status-grid {
     grid-template-columns: 1fr;
   }
 }

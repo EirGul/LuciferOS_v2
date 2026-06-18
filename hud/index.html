@@ -16,9 +16,28 @@
 
     <section class="grid">
       <section class="panel">
-        <h2>API Health</h2>
+        <div class="panel-title-row">
+          <h2>API Health</h2>
+          <span id="healthBadge" class="badge badge-muted">not checked</span>
+        </div>
         <button id="healthButton">Check API</button>
-        <pre id="healthOutput">Not checked yet.</pre>
+
+        <div class="status-grid">
+          <div class="status-card">
+            <span class="label">Status</span>
+            <strong id="healthStatus">Unknown</strong>
+          </div>
+          <div class="status-card">
+            <span class="label">Provider</span>
+            <strong id="healthProvider">Unknown</strong>
+          </div>
+          <div class="status-card">
+            <span class="label">Adapter</span>
+            <strong id="healthAdapter">Unknown</strong>
+          </div>
+        </div>
+
+        <p id="healthMessage" class="message">API health has not been checked yet.</p>
       </section>
 
       <section class="panel">
@@ -27,7 +46,18 @@
           <input id="chatInput" type="text" value="Hei Lucifer" aria-label="Chat text">
           <button id="chatButton">Send</button>
         </div>
-        <pre id="chatOutput">No message sent yet.</pre>
+
+        <article class="response-card">
+          <span class="label">Voice summary</span>
+          <p id="voiceOutput">No message sent yet.</p>
+        </article>
+
+        <article class="response-card">
+          <span class="label">Visual response</span>
+          <p id="visualOutput">No message sent yet.</p>
+        </article>
+
+        <p id="traceOutput" class="trace">trace_id: none</p>
       </section>
     </section>
   </main>
