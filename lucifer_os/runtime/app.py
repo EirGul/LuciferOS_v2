@@ -35,3 +35,12 @@ class LuciferApp:
 
     def status(self) -> InterfaceOutput:
         return self.handle_text('status')
+
+    def health(self) -> dict[str, str | bool | None]:
+        return {
+            'app_ready': True,
+            'project_root': self.project_root,
+            'interface_name': self.interface_name,
+            'provider_name': self.provider_name,
+            'adapter_name': self.adapter.name,
+        }

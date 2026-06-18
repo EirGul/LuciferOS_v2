@@ -94,3 +94,30 @@ def test_lucifer_app_status_uses_app_interface():
 
     assert output.visual_channel == 'hud'
     assert 'LuciferOS status' in output.visual_text
+
+
+def test_lucifer_app_health_returns_machine_readable_runtime_state():
+    app = LuciferApp(
+        project_root='.',
+        interface_name='cli',
+        provider_name='offline',
+    )
+
+    health = app.health()
+
+    assert health['app_ready'] is True
+    assert health['project_root'] == '.'
+    assert health['interface_name'] == 'cli'
+    assert health['provider_name'] == 'offline'
+    assert health['adapter_name'] == 'cli'
+
+
+def test_lucifer_app_health_reports_none_provider_when_config_default_is_used():
+    app = LuciferApp(interface_name='hud')
+
+    health = app.health()
+
+    assert health['app_ready'] is True
+    assert health['interface_name'] == 'hud'
+    assert health['provider_name'] is None
+    assert health['adapter_name'] == 'hud'
