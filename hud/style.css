@@ -360,3 +360,33 @@ input {
 .face-speaking .eye {
   opacity: 0.95;
 }
+
+/* Thinking state */
+@keyframes thinkingGlow {
+  0% {
+    box-shadow: 0 0 42px rgba(255, 214, 96, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 72px rgba(255, 214, 96, 0.38);
+  }
+  100% {
+    box-shadow: 0 0 42px rgba(255, 214, 96, 0.16);
+  }
+}
+
+.face-thinking {
+  border-color: rgba(255, 214, 96, 0.85);
+  animation: thinkingGlow 1.25s ease-in-out infinite;
+}
+
+.face-thinking .eye,
+.face-thinking .mouth {
+  background: #ffd660;
+  border-color: #ffd660;
+  box-shadow: 0 0 18px rgba(255, 214, 96, 0.48);
+}
+
+.face-thinking .mouth {
+  height: 10px;
+  width: 46px;
+}

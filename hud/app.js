@@ -15,7 +15,7 @@ const visualOutput = document.getElementById("visualOutput");
 const traceOutput = document.getElementById("traceOutput");
 
 function setFaceState(state) {
-  const allowedStates = ["idle", "online", "offline", "speaking", "error"];
+  const allowedStates = ["idle", "online", "offline", "thinking", "speaking", "error"];
   const nextState = allowedStates.includes(state) ? state : "idle";
   faceCore.className = "face-core face-" + nextState;
 }
@@ -88,8 +88,8 @@ async function sendChat() {
     return;
   }
 
-  setFaceState("speaking");
-  voiceOutput.textContent = "Sending...";
+  setFaceState("thinking");
+  voiceOutput.textContent = "Thinking...";
   visualOutput.textContent = "Waiting for LuciferOS API...";
   traceOutput.textContent = "trace_id: pending";
 

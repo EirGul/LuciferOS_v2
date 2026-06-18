@@ -131,3 +131,15 @@ def test_static_hud_returns_face_to_online_after_speaking():
     assert 'window.setTimeout' in js
     assert 'setFaceState("online")' in js
     assert 'returnFaceToOnlineAfterSpeaking();' in js
+
+
+def test_static_hud_face_has_thinking_state():
+    js = (HUD_ROOT / 'app.js').read_text(encoding='utf-8')
+    css = (HUD_ROOT / 'style.css').read_text(encoding='utf-8')
+
+    assert '"thinking"' in js
+    assert 'setFaceState("thinking")' in js
+    assert 'Thinking...' in js
+    assert '.face-thinking' in css
+    assert '@keyframes thinkingGlow' in css
+    assert '#ffd660' in css
