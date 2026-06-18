@@ -1,0 +1,102 @@
+:root {
+  font-family: Arial, sans-serif;
+  background: #05070a;
+  color: #e8f5f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #12332e, #05070a 55%);
+}
+
+.shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.panel {
+  border: 1px solid rgba(115, 255, 216, 0.25);
+  border-radius: 18px;
+  background: rgba(7, 15, 18, 0.82);
+  box-shadow: 0 0 30px rgba(31, 255, 196, 0.08);
+  padding: 24px;
+}
+
+.header-panel {
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #73ffd8;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+h1, h2 {
+  margin: 0 0 12px;
+}
+
+.subtitle {
+  margin: 0;
+  color: #a7bbb6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #73ffd8;
+  color: #06100e;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+input {
+  width: 100%;
+  border: 1px solid rgba(115, 255, 216, 0.3);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8f5f2;
+}
+
+.chat-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+pre {
+  min-height: 120px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 16px 0 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #d9fff5;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-row {
+    grid-template-columns: 1fr;
+  }
+}

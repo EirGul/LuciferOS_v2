@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LuciferOS HUD</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="panel header-panel">
+      <p class="eyebrow">LuciferOS</p>
+      <h1>HUD Preview</h1>
+      <p class="subtitle">Static HUD skeleton connected to the local LuciferOS API.</p>
+    </section>
+
+    <section class="grid">
+      <section class="panel">
+        <h2>API Health</h2>
+        <button id="healthButton">Check API</button>
+        <pre id="healthOutput">Not checked yet.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Chat</h2>
+        <div class="chat-row">
+          <input id="chatInput" type="text" value="Hei Lucifer" aria-label="Chat text">
+          <button id="chatButton">Send</button>
+        </div>
+        <pre id="chatOutput">No message sent yet.</pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
