@@ -22,7 +22,7 @@ def test_provider_factory_creates_ollama_provider_with_config_model():
 
     assert isinstance(provider, OllamaProvider)
     assert provider.metadata().name == 'ollama'
-    assert provider.config.model == 'qwen3.5:9b'
+    assert provider.config.model == 'eirik-qwen3:latest'
 
 
 def test_provider_factory_normalizes_provider_name():

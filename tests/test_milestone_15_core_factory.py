@@ -23,7 +23,7 @@ def test_core_factory_creates_core_with_explicit_ollama_provider():
 
     assert isinstance(core, LuciferCore)
     assert core.primary_provider.metadata().name == 'ollama'
-    assert core.primary_provider.config.model == 'qwen3.5:9b'
+    assert core.primary_provider.config.model == 'eirik-qwen3:latest'
 
 
 def test_core_factory_rejects_unknown_provider():

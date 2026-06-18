@@ -8,7 +8,7 @@ def test_config_loader_reads_project_config_file():
 
     assert config.project_name == 'LuciferOS v2'
     assert config.default_provider == 'offline'
-    assert config.ollama_model == 'qwen3.5:9b'
+    assert config.ollama_model == 'eirik-qwen3:latest'
     assert config.performance_mode == 'instant'
     assert config.audit_enabled is True
 
@@ -18,7 +18,7 @@ def test_config_loader_falls_back_to_defaults_when_file_is_missing(tmp_path):
 
     assert config.project_name == 'LuciferOS v2'
     assert config.default_provider == 'offline'
-    assert config.ollama_model == 'qwen3.5:9b'
+    assert config.ollama_model == 'eirik-qwen3:latest'
     assert config.performance_mode == 'instant'
     assert config.audit_enabled is True
 

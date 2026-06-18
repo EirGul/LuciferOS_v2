@@ -86,7 +86,7 @@ def test_cli_uses_config_ollama_model_when_creating_ollama_provider(capsys):
     assert exit_code == 0
     assert 'offline-modus' in captured.out
     assert captured_configs
-    assert captured_configs[0].model == 'qwen3.5:9b'
+    assert captured_configs[0].model == 'eirik-qwen3:latest'
 
 
 def test_cli_api_mode_uses_api_client(capsys, monkeypatch):

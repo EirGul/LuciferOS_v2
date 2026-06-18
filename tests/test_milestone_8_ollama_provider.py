@@ -19,7 +19,7 @@ def test_ollama_provider_default_config():
     provider = OllamaProvider()
 
     assert provider.config.base_url == 'http://127.0.0.1:11434'
-    assert provider.config.model == 'qwen3.5:9b'
+    assert provider.config.model == 'eirik-qwen3:latest'
     assert provider.config.timeout_seconds == 120
 
 

@@ -12,7 +12,7 @@ from lucifer_os.response.response import LuciferResponse
 @dataclass(frozen=True)
 class OllamaConfig:
     base_url: str = 'http://127.0.0.1:11434'
-    model: str = 'qwen3.5:9b'
+    model: str = 'eirik-qwen3:latest'
     timeout_seconds: int = 120
 
 

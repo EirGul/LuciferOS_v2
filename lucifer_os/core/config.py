@@ -22,7 +22,7 @@ class ConfigLoader:
         defaults = {
             'project_name': 'LuciferOS v2',
             'default_provider': 'offline',
-            'ollama_model': 'qwen3.5:9b',
+            'ollama_model': 'eirik-qwen3:latest',
             'performance_mode': 'instant',
             'audit_enabled': True,
         }
