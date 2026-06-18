@@ -1,6 +1,7 @@
 from dataclasses import asdict
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from lucifer_os.interfaces.api_schema import ApiChatRequest
 from lucifer_os.interfaces.api_service import ApiService
@@ -12,6 +13,18 @@ def create_api_app(
 ) -> FastAPI:
     service = ApiService(project_root=project_root, provider_name=provider_name)
     app = FastAPI(title='LuciferOS API')
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            'http://127.0.0.1:8787',
+            'http://localhost:8787',
+            'file://',
+            'null',
+        ],
+        allow_methods=['GET', 'POST', 'OPTIONS'],
+        allow_headers=['Content-Type'],
+    )
 
     @app.get('/health')
     def health() -> dict:

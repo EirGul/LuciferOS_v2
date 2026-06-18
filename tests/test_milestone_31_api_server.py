@@ -65,3 +65,20 @@ def test_api_server_has_main_entrypoint():
     from lucifer_os.interfaces import api_server
 
     assert callable(api_server.main)
+
+
+def test_api_server_allows_cors_preflight_for_chat():
+    client = TestClient(create_api_app())
+
+    response = client.options(
+        '/chat',
+        headers={
+            'Origin': 'null',
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type',
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers['access-control-allow-origin'] == 'null'
+    assert 'POST' in response.headers['access-control-allow-methods']
