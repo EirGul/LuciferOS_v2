@@ -1,4 +1,4 @@
-﻿# LuciferOS v2
+# LuciferOS v2
 
 Fresh start for LuciferOS v2.
 
@@ -14,3 +14,12 @@ Principles:
 
 Current milestone:
 - Milestone 1: clean repo and package skeleton
+
+## Project documentation
+
+- [LuciferOS Manifest](docs/luciferos_manifest.md)
+- [Runtime Modes](docs/runtime_modes.md)
+
+The manifest defines the architectural boundaries, memory and learning requirements, provider strategy, safety rules, and long-term goals for LuciferOS.
+
+The runtime modes document explains the verified safe/offline and local Ollama API startup modes.
