@@ -75,3 +75,22 @@ def test_lucifer_app_passes_session_and_metadata_to_core_audit():
 def test_lucifer_app_rejects_unknown_interface():
     with pytest.raises(ValueError, match='Ukjent interface: unknown'):
         LuciferApp(interface_name='unknown')
+
+
+def test_lucifer_app_status_returns_status_output():
+    app = LuciferApp(interface_name='cli')
+
+    output = app.status()
+
+    assert output.visual_channel == 'cli'
+    assert 'LuciferOS status' in output.visual_text
+    assert 'Active provider: offline' in output.visual_text
+
+
+def test_lucifer_app_status_uses_app_interface():
+    app = LuciferApp(interface_name='hud')
+
+    output = app.status()
+
+    assert output.visual_channel == 'hud'
+    assert 'LuciferOS status' in output.visual_text

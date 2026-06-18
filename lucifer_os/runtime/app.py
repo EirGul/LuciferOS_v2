@@ -32,3 +32,6 @@ class LuciferApp:
         )
 
         return self.adapter.handle_input(input_data)
+
+    def status(self) -> InterfaceOutput:
+        return self.handle_text('status')
