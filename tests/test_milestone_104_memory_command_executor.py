@@ -115,7 +115,7 @@ def test_memory_command_executor_rejects_delete_without_memory_id():
     result = executor.execute(command)
 
     assert result.status == MemoryCommandExecutionStatus.REJECTED
-    assert result.message == "Delete command requires an explicit memory id before execution."
+    assert result.message == "No matching memory target was found."
 
 
 def test_memory_command_executor_prepares_delete_with_memory_id_as_pending_action():
