@@ -19,6 +19,10 @@ class MemoryStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update(self, item: MemoryItem) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     def delete(self, memory_id: str) -> bool:
         raise NotImplementedError
 
@@ -41,6 +45,12 @@ class InMemoryMemoryStore(MemoryStore):
         if type is not None:
             items = [item for item in items if item.type == type]
         return items
+
+    def update(self, item: MemoryItem) -> bool:
+        if item.id not in self._items:
+            return False
+        self._items[item.id] = item
+        return True
 
     def delete(self, memory_id: str) -> bool:
         if memory_id not in self._items:

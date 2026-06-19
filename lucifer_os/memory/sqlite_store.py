@@ -19,18 +19,7 @@ class SQLiteMemoryStore(MemoryStore):
     def add(self, item: MemoryItem) -> MemoryItem:
         self._connection.execute(
             "INSERT OR REPLACE INTO memory_items (id, content, memory_type, scope, source, confidence, tags_json, metadata_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                item.id,
-                item.content,
-                item.type.value,
-                item.scope.value,
-                item.source,
-                item.confidence,
-                json.dumps(list(item.tags), ensure_ascii=False),
-                json.dumps(item.metadata, ensure_ascii=False, sort_keys=True),
-                item.created_at,
-                item.updated_at,
-            ),
+            self._item_to_params(item),
         )
         self._connection.commit()
         return item
@@ -64,6 +53,25 @@ class SQLiteMemoryStore(MemoryStore):
 
         rows = self._connection.execute(query, params).fetchall()
         return [self._row_to_item(row) for row in rows]
+
+    def update(self, item: MemoryItem) -> bool:
+        cursor = self._connection.execute(
+            "UPDATE memory_items SET content = ?, memory_type = ?, scope = ?, source = ?, confidence = ?, tags_json = ?, metadata_json = ?, created_at = ?, updated_at = ? WHERE id = ?",
+            (
+                item.content,
+                item.type.value,
+                item.scope.value,
+                item.source,
+                item.confidence,
+                json.dumps(list(item.tags), ensure_ascii=False),
+                json.dumps(item.metadata, ensure_ascii=False, sort_keys=True),
+                item.created_at,
+                item.updated_at,
+                item.id,
+            ),
+        )
+        self._connection.commit()
+        return cursor.rowcount > 0
 
     def delete(self, memory_id: str) -> bool:
         cursor = self._connection.execute(
@@ -99,6 +107,21 @@ class SQLiteMemoryStore(MemoryStore):
             "CREATE INDEX IF NOT EXISTS idx_memory_items_created_at ON memory_items(created_at)"
         )
         self._connection.commit()
+
+    @staticmethod
+    def _item_to_params(item: MemoryItem) -> tuple[Any, ...]:
+        return (
+            item.id,
+            item.content,
+            item.type.value,
+            item.scope.value,
+            item.source,
+            item.confidence,
+            json.dumps(list(item.tags), ensure_ascii=False),
+            json.dumps(item.metadata, ensure_ascii=False, sort_keys=True),
+            item.created_at,
+            item.updated_at,
+        )
 
     @staticmethod
     def _row_to_item(row: sqlite3.Row) -> MemoryItem:
