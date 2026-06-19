@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from uuid import uuid4
@@ -80,6 +81,57 @@ class MemoryCandidateSelectionPreparationResult:
             and self.pending_action is None
         ):
             raise ValueError("Prepared candidate selection result requires pending_action.")
+
+
+class MemoryCandidateSelectionRequestStore(ABC):
+    @abstractmethod
+    def set(self, request: MemoryCandidateSelectionRequest) -> MemoryCandidateSelectionRequest:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self) -> MemoryCandidateSelectionRequest | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self) -> MemoryCandidateSelectionRequest | None:
+        raise NotImplementedError
+
+
+class InMemoryMemoryCandidateSelectionRequestStore(MemoryCandidateSelectionRequestStore):
+    def __init__(self) -> None:
+        self._request: MemoryCandidateSelectionRequest | None = None
+
+    def set(self, request: MemoryCandidateSelectionRequest) -> MemoryCandidateSelectionRequest:
+        self._request = request
+        return request
+
+    def get(self) -> MemoryCandidateSelectionRequest | None:
+        return self._request
+
+    def clear(self) -> MemoryCandidateSelectionRequest | None:
+        request = self._request
+        self._request = None
+        return request
+
+
+class MemoryCandidateSelectionRequestService:
+    def __init__(
+        self,
+        store: MemoryCandidateSelectionRequestStore | None = None,
+    ) -> None:
+        self.store = store or InMemoryMemoryCandidateSelectionRequestStore()
+
+    def set_request(
+        self,
+        request: MemoryCandidateSelectionRequest,
+    ) -> MemoryCandidateSelectionRequest:
+        return self.store.set(request)
+
+    def get_request(self) -> MemoryCandidateSelectionRequest | None:
+        return self.store.get()
+
+    def clear_request(self) -> MemoryCandidateSelectionRequest | None:
+        return self.store.clear()
 
 
 class MemoryCandidateSelector:

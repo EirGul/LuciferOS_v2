@@ -12,7 +12,14 @@ from lucifer_os.memory.pending import (
     PendingMemoryActionType,
 )
 from lucifer_os.memory.resolution_plan import MemoryResolutionPlanAction, MemoryResolutionPlanner
-from lucifer_os.memory.resolver import MemoryTargetResolver
+from lucifer_os.memory.resolver import MemoryTargetCandidate, MemoryTargetResolver
+from lucifer_os.memory.selection import (
+    MemoryCandidateSelectionOutcome,
+    MemoryCandidateSelectionPendingActionBuilder,
+    MemoryCandidateSelectionRequest,
+    MemoryCandidateSelectionRequestService,
+    MemoryCandidateSelector,
+)
 from lucifer_os.memory.service import MemoryOperationResult, MemoryService
 
 
@@ -34,6 +41,7 @@ class MemoryCommandExecutionResult:
     pending_action: PendingMemoryAction | None = None
     confirmation_result: PendingMemoryActionConfirmationResult | None = None
     memories: tuple[MemoryItem, ...] = field(default_factory=tuple)
+    selection_request: MemoryCandidateSelectionRequest | None = None
 
 
 class MemoryCommandExecutor:
@@ -46,6 +54,9 @@ class MemoryCommandExecutor:
         max_results: int = 20,
         target_resolver: MemoryTargetResolver | None = None,
         resolution_planner: MemoryResolutionPlanner | None = None,
+        selection_service: MemoryCandidateSelectionRequestService | None = None,
+        candidate_selector: MemoryCandidateSelector | None = None,
+        selection_pending_action_builder: MemoryCandidateSelectionPendingActionBuilder | None = None,
     ) -> None:
         if max_results <= 0:
             raise ValueError("max_results must be greater than zero.")
@@ -56,6 +67,12 @@ class MemoryCommandExecutor:
         self.max_results = max_results
         self.target_resolver = target_resolver or MemoryTargetResolver(max_candidates=max_results)
         self.resolution_planner = resolution_planner or MemoryResolutionPlanner()
+        self.selection_service = selection_service or MemoryCandidateSelectionRequestService()
+        self.candidate_selector = candidate_selector or MemoryCandidateSelector()
+        self.selection_pending_action_builder = (
+            selection_pending_action_builder
+            or MemoryCandidateSelectionPendingActionBuilder()
+        )
 
     def execute(self, command: MemoryCommand) -> MemoryCommandExecutionResult:
         if command.type == MemoryCommandType.REMEMBER:
@@ -189,11 +206,9 @@ class MemoryCommandExecutor:
             if plan.action == MemoryResolutionPlanAction.PREPARE_PENDING_ACTION:
                 memory_id = plan.selected_memory_id
             elif plan.action == MemoryResolutionPlanAction.ASK_USER_TO_CHOOSE:
-                return MemoryCommandExecutionResult(
-                    status=MemoryCommandExecutionStatus.AWAITING_USER_SELECTION,
-                    message="Multiple matching memories found; user selection is required.",
+                return self._await_user_selection(
                     command=command,
-                    memories=tuple(candidate.memory for candidate in plan.candidates),
+                    candidates=plan.candidates,
                 )
             else:
                 return MemoryCommandExecutionResult(
@@ -242,11 +257,9 @@ class MemoryCommandExecutor:
             if plan.action == MemoryResolutionPlanAction.PREPARE_PENDING_ACTION:
                 memory_id = plan.selected_memory_id
             elif plan.action == MemoryResolutionPlanAction.ASK_USER_TO_CHOOSE:
-                return MemoryCommandExecutionResult(
-                    status=MemoryCommandExecutionStatus.AWAITING_USER_SELECTION,
-                    message="Multiple matching memories found; user selection is required.",
+                return self._await_user_selection(
                     command=command,
-                    memories=tuple(candidate.memory for candidate in plan.candidates),
+                    candidates=plan.candidates,
                 )
             else:
                 return MemoryCommandExecutionResult(
@@ -272,6 +285,95 @@ class MemoryCommandExecutor:
             message="Memory delete requires confirmation.",
             command=command,
             pending_action=pending_action,
+        )
+
+    def _await_user_selection(
+        self,
+        command: MemoryCommand,
+        candidates: tuple[MemoryTargetCandidate, ...],
+    ) -> MemoryCommandExecutionResult:
+        request = MemoryCandidateSelectionRequest(
+            command_type=command.type,
+            source_text=command.raw_text,
+            candidates=candidates,
+            proposed_content=command.content if command.type == MemoryCommandType.CORRECT else None,
+        )
+        self.selection_service.set_request(request)
+
+        return MemoryCommandExecutionResult(
+            status=MemoryCommandExecutionStatus.AWAITING_USER_SELECTION,
+            message="Multiple matching memories found; user selection is required.",
+            command=command,
+            memories=tuple(candidate.memory for candidate in candidates),
+            selection_request=request,
+        )
+
+    def select_memory_candidate(
+        self,
+        request_id: str,
+        memory_id: str,
+    ) -> MemoryCommandExecutionResult:
+        request = self.selection_service.get_request()
+        if request is None:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message="No active memory candidate selection request exists.",
+                command=self._selection_command(None),
+            )
+
+        if request.id != request_id:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message="Memory candidate selection request does not match the active request.",
+                command=self._selection_command(request),
+            )
+
+        selection = self.candidate_selector.select(request, memory_id)
+        if selection.outcome != MemoryCandidateSelectionOutcome.SELECTED:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=selection.explanation,
+                command=self._selection_command(request),
+                memories=tuple(candidate.memory for candidate in request.candidates),
+                selection_request=request,
+            )
+
+        preparation = self.selection_pending_action_builder.prepare(request, selection)
+        if preparation.pending_action is None:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=preparation.explanation,
+                command=self._selection_command(request),
+                memories=tuple(candidate.memory for candidate in request.candidates),
+                selection_request=request,
+            )
+
+        self.selection_service.clear_request()
+        self.pending_service.set_pending(preparation.pending_action)
+
+        return MemoryCommandExecutionResult(
+            status=MemoryCommandExecutionStatus.PENDING_CONFIRMATION,
+            message="Selected memory target requires confirmation.",
+            command=self._selection_command(request),
+            pending_action=preparation.pending_action,
+        )
+
+    @staticmethod
+    def _selection_command(
+        request: MemoryCandidateSelectionRequest | None,
+    ) -> MemoryCommand:
+        if request is None:
+            return MemoryCommand(
+                type=MemoryCommandType.NOT_MEMORY_COMMAND,
+                raw_text="memory candidate selection",
+                normalized_text="memory candidate selection",
+            )
+
+        return MemoryCommand(
+            type=request.command_type,
+            raw_text=request.source_text,
+            normalized_text=request.source_text.strip().lower(),
+            content=request.proposed_content,
         )
 
     def _explain_policy(self, command: MemoryCommand) -> MemoryCommandExecutionResult:
