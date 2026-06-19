@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from lucifer_os.memory.audit import InMemoryMemoryAuditSink, MemoryAuditAction, MemoryAuditEvent, MemoryAuditSink
-from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType
-from lucifer_os.memory.policy import MemoryDeleteRequest, MemoryPolicy, MemoryWriteRequest
+from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType, utc_now_iso
+from lucifer_os.memory.policy import MemoryDeleteRequest, MemoryPolicy, MemoryUpdateRequest, MemoryWriteRequest
 from lucifer_os.memory.store import MemoryStore
 
 
@@ -127,6 +127,139 @@ class MemoryService:
             requires_confirmation=False,
             audit_reason=decision.audit_reason,
             item=stored_item,
+        )
+
+    def update_memory(
+        self,
+        memory_id: str,
+        content: str,
+        type: MemoryType,
+        scope: MemoryScope,
+        source: str = "user",
+        confidence: float = 1.0,
+        tags: tuple[str, ...] | None = None,
+        metadata: dict[str, Any] | None = None,
+        confirmed: bool = False,
+    ) -> MemoryOperationResult:
+        clean_memory_id = memory_id.strip()
+
+        self.audit_sink.record(
+            MemoryAuditEvent(
+                action=MemoryAuditAction.UPDATE_REQUESTED,
+                reason="Memory update requested.",
+                memory_id=clean_memory_id or None,
+                source=source,
+                metadata={
+                    "type": type.value,
+                    "scope": scope.value,
+                    "confirmed": confirmed,
+                },
+            )
+        )
+
+        decision = self.policy.evaluate_update(
+            MemoryUpdateRequest(
+                memory_id=memory_id,
+                content=content,
+                type=type,
+                scope=scope,
+                source=source,
+            )
+        )
+
+        if not decision.allowed:
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.UPDATE_REJECTED,
+                    reason=decision.audit_reason,
+                    memory_id=clean_memory_id or None,
+                    source=source,
+                    metadata={
+                        "type": type.value,
+                        "scope": scope.value,
+                    },
+                )
+            )
+            return MemoryOperationResult(
+                allowed=False,
+                requires_confirmation=decision.requires_confirmation,
+                audit_reason=decision.audit_reason,
+            )
+
+        if decision.requires_confirmation and not confirmed:
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.UPDATE_REQUIRES_CONFIRMATION,
+                    reason=decision.audit_reason,
+                    memory_id=clean_memory_id,
+                    source=source,
+                    metadata={
+                        "type": type.value,
+                        "scope": scope.value,
+                    },
+                )
+            )
+            return MemoryOperationResult(
+                allowed=True,
+                requires_confirmation=True,
+                audit_reason=decision.audit_reason,
+            )
+
+        existing = self.store.get(clean_memory_id)
+        if existing is None:
+            reason = "Memory update rejected: memory id not found."
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.UPDATE_REJECTED,
+                    reason=reason,
+                    memory_id=clean_memory_id or None,
+                    source=source,
+                    metadata={
+                        "type": type.value,
+                        "scope": scope.value,
+                    },
+                )
+            )
+            return MemoryOperationResult(
+                allowed=False,
+                requires_confirmation=False,
+                audit_reason=reason,
+            )
+
+        updated_item = MemoryItem(
+            id=existing.id,
+            content=content,
+            type=type,
+            scope=scope,
+            source=source,
+            confidence=confidence,
+            tags=tags or (),
+            metadata=metadata or {},
+            created_at=existing.created_at,
+            updated_at=utc_now_iso(),
+        )
+
+        updated = self.store.update(updated_item)
+
+        self.audit_sink.record(
+            MemoryAuditEvent(
+                action=MemoryAuditAction.UPDATE_COMPLETED,
+                reason=decision.audit_reason,
+                memory_id=updated_item.id,
+                source=source,
+                metadata={
+                    "type": type.value,
+                    "scope": scope.value,
+                    "updated": updated,
+                },
+            )
+        )
+
+        return MemoryOperationResult(
+            allowed=True,
+            requires_confirmation=False,
+            audit_reason=decision.audit_reason,
+            item=updated_item if updated else None,
         )
 
     def get_memory(self, memory_id: str) -> MemoryItem | None:

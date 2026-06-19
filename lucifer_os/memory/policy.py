@@ -14,6 +14,15 @@ class MemoryWriteRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class MemoryUpdateRequest:
+    memory_id: str
+    content: str
+    type: MemoryType
+    scope: MemoryScope
+    source: str = "user"
+
+
+@dataclass(frozen=True, slots=True)
 class MemoryDeleteRequest:
     memory_id: str
     source: str = "user"
@@ -59,6 +68,34 @@ class MemoryPolicy:
             allowed=True,
             requires_confirmation=False,
             audit_reason="Memory write allowed.",
+        )
+
+    def evaluate_update(self, request: MemoryUpdateRequest) -> MemoryDecision:
+        if not request.memory_id.strip():
+            return MemoryDecision(
+                allowed=False,
+                requires_confirmation=False,
+                audit_reason="Memory update rejected: empty memory id.",
+            )
+
+        if not request.content.strip():
+            return MemoryDecision(
+                allowed=False,
+                requires_confirmation=False,
+                audit_reason="Memory update rejected: empty content.",
+            )
+
+        if request.type in self.HIGH_IMPACT_TYPES or request.scope in self.HIGH_IMPACT_SCOPES:
+            return MemoryDecision(
+                allowed=True,
+                requires_confirmation=True,
+                audit_reason="Memory update allowed but requires confirmation due to high-impact type or scope.",
+            )
+
+        return MemoryDecision(
+            allowed=True,
+            requires_confirmation=False,
+            audit_reason="Memory update allowed.",
         )
 
     def evaluate_delete(self, request: MemoryDeleteRequest) -> MemoryDecision:
