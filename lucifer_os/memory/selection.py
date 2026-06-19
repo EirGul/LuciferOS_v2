@@ -2,12 +2,24 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from uuid import uuid4
 
 from lucifer_os.memory.commands import MemoryCommandType
 from lucifer_os.memory.pending import PendingMemoryAction, PendingMemoryActionType
 from lucifer_os.memory.resolver import MemoryTargetCandidate
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def parse_utc_iso(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 class MemoryCandidateSelectionOutcome(str, Enum):
@@ -27,6 +39,7 @@ class MemoryCandidateSelectionRequest:
     candidates: tuple[MemoryTargetCandidate, ...]
     proposed_content: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
+    created_at: str = field(default_factory=utc_now_iso)
 
     def __post_init__(self) -> None:
         if self.command_type not in {MemoryCommandType.CORRECT, MemoryCommandType.DELETE}:
@@ -83,6 +96,14 @@ class MemoryCandidateSelectionPreparationResult:
             raise ValueError("Prepared candidate selection result requires pending_action.")
 
 
+@dataclass(frozen=True, slots=True)
+class MemoryCandidateSelectionRequestLifecycleResult:
+    cancelled: bool
+    stale: bool
+    request: MemoryCandidateSelectionRequest | None = None
+    reason: str = ""
+
+
 class MemoryCandidateSelectionRequestStore(ABC):
     @abstractmethod
     def set(self, request: MemoryCandidateSelectionRequest) -> MemoryCandidateSelectionRequest:
@@ -118,8 +139,12 @@ class MemoryCandidateSelectionRequestService:
     def __init__(
         self,
         store: MemoryCandidateSelectionRequestStore | None = None,
+        stale_after_seconds: int = 300,
     ) -> None:
+        if stale_after_seconds <= 0:
+            raise ValueError("stale_after_seconds must be greater than zero.")
         self.store = store or InMemoryMemoryCandidateSelectionRequestStore()
+        self.stale_after_seconds = stale_after_seconds
 
     def set_request(
         self,
@@ -128,10 +153,61 @@ class MemoryCandidateSelectionRequestService:
         return self.store.set(request)
 
     def get_request(self) -> MemoryCandidateSelectionRequest | None:
-        return self.store.get()
+        result = self.get_request_lifecycle_result()
+        if result.stale:
+            return None
+        return result.request
+
+    def get_request_lifecycle_result(self) -> MemoryCandidateSelectionRequestLifecycleResult:
+        request = self.store.get()
+        if request is None:
+            return MemoryCandidateSelectionRequestLifecycleResult(
+                cancelled=False,
+                stale=False,
+                request=None,
+                reason="No active memory candidate selection request exists.",
+            )
+
+        if self.is_stale(request):
+            self.store.clear()
+            return MemoryCandidateSelectionRequestLifecycleResult(
+                cancelled=False,
+                stale=True,
+                request=request,
+                reason="Memory candidate selection request is stale and was cleared.",
+            )
+
+        return MemoryCandidateSelectionRequestLifecycleResult(
+            cancelled=False,
+            stale=False,
+            request=request,
+            reason="Memory candidate selection request is active.",
+        )
+
+    def cancel_request(self) -> MemoryCandidateSelectionRequestLifecycleResult:
+        request = self.store.clear()
+        if request is None:
+            return MemoryCandidateSelectionRequestLifecycleResult(
+                cancelled=False,
+                stale=False,
+                request=None,
+                reason="No active memory candidate selection request to cancel.",
+            )
+
+        return MemoryCandidateSelectionRequestLifecycleResult(
+            cancelled=True,
+            stale=False,
+            request=request,
+            reason="Memory candidate selection request cancelled.",
+        )
 
     def clear_request(self) -> MemoryCandidateSelectionRequest | None:
         return self.store.clear()
+
+    def is_stale(self, request: MemoryCandidateSelectionRequest) -> bool:
+        created_at = parse_utc_iso(request.created_at)
+        expires_at = created_at + timedelta(seconds=self.stale_after_seconds)
+        return datetime.now(timezone.utc) > expires_at
 
 
 class MemoryCandidateSelector:
