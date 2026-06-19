@@ -228,13 +228,81 @@ class MemoryCommandExecutor:
 
     def _confirm_pending(self, command: MemoryCommand) -> MemoryCommandExecutionResult:
         result = self.pending_service.confirm_pending()
-        status = MemoryCommandExecutionStatus.CONFIRMED_PENDING if result.confirmed else MemoryCommandExecutionStatus.REJECTED
+        if not result.confirmed or result.action is None:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=result.reason,
+                command=command,
+                confirmation_result=result,
+                pending_action=result.action,
+            )
+
+        operation_result = self._execute_confirmed_action(result.action)
+        status = MemoryCommandExecutionStatus.CONFIRMED_PENDING if operation_result.allowed else MemoryCommandExecutionStatus.REJECTED
         return MemoryCommandExecutionResult(
             status=status,
             message=result.reason,
             command=command,
+            operation_result=operation_result,
             confirmation_result=result,
             pending_action=result.action,
+        )
+
+    def _execute_confirmed_action(self, action: PendingMemoryAction) -> MemoryOperationResult:
+        if action.action_type == PendingMemoryActionType.REMEMBER:
+            if action.proposed_content is None or not action.proposed_content.strip():
+                return MemoryOperationResult(
+                    allowed=False,
+                    requires_confirmation=False,
+                    audit_reason="Confirmed remember action has no proposed content.",
+                )
+            return self.memory_service.add_memory(
+                content=action.proposed_content,
+                type=self.default_type,
+                scope=self.default_scope,
+                source="memory-command-executor",
+                confirmed=True,
+            )
+
+        if action.action_type == PendingMemoryActionType.CORRECT:
+            if action.memory_id is None or not action.memory_id.strip():
+                return MemoryOperationResult(
+                    allowed=False,
+                    requires_confirmation=False,
+                    audit_reason="Confirmed correction action has no memory id.",
+                )
+            if action.proposed_content is None or not action.proposed_content.strip():
+                return MemoryOperationResult(
+                    allowed=False,
+                    requires_confirmation=False,
+                    audit_reason="Confirmed correction action has no proposed content.",
+                )
+            return self.memory_service.update_memory(
+                memory_id=action.memory_id,
+                content=action.proposed_content,
+                type=self.default_type,
+                scope=self.default_scope,
+                source="memory-command-executor",
+                confirmed=True,
+            )
+
+        if action.action_type == PendingMemoryActionType.DELETE:
+            if action.memory_id is None or not action.memory_id.strip():
+                return MemoryOperationResult(
+                    allowed=False,
+                    requires_confirmation=False,
+                    audit_reason="Confirmed delete action has no memory id.",
+                )
+            return self.memory_service.delete_memory(
+                memory_id=action.memory_id,
+                source="memory-command-executor",
+                confirmed=True,
+            )
+
+        return MemoryOperationResult(
+            allowed=False,
+            requires_confirmation=False,
+            audit_reason="Unsupported pending memory action type.",
         )
 
     def _cancel_pending(self, command: MemoryCommand) -> MemoryCommandExecutionResult:
