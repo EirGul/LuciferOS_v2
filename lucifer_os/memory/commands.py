@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 
@@ -54,6 +55,11 @@ class MemoryCommandParser:
         "rett minne ",
         "endre minne ",
         "correct memory ",
+    )
+
+    QUOTED_CORRECTION_PATTERNS = (
+        re.compile(r'^korriger minne\s+"(?P<query>[^"]+)"\s+til\s+"(?P<content>[^"]+)"$', re.IGNORECASE),
+        re.compile(r'^correct memory\s+"(?P<query>[^"]+)"\s+to\s+"(?P<content>[^"]+)"$', re.IGNORECASE),
     )
 
     DELETE_PREFIXES = (
@@ -115,6 +121,17 @@ class MemoryCommandParser:
                 query=search_query,
             )
 
+        quoted_correction = self._extract_quoted_correction(text)
+        if quoted_correction is not None:
+            query, content = quoted_correction
+            return MemoryCommand(
+                type=MemoryCommandType.CORRECT,
+                raw_text=raw_text,
+                normalized_text=normalized_text,
+                query=query,
+                content=content,
+            )
+
         correction = self._extract_prefix_content(text, self.CORRECT_PREFIXES)
         if correction is not None:
             return MemoryCommand(
@@ -155,6 +172,22 @@ class MemoryCommandParser:
             )
 
         return self._not_memory_command(raw_text, normalized_text)
+
+    @classmethod
+    def _extract_quoted_correction(cls, text: str) -> tuple[str, str] | None:
+        stripped = text.strip()
+
+        for pattern in cls.QUOTED_CORRECTION_PATTERNS:
+            match = pattern.fullmatch(stripped)
+            if match is None:
+                continue
+
+            query = match.group("query").strip()
+            content = match.group("content").strip()
+            if query and content:
+                return query, content
+
+        return None
 
     @staticmethod
     def _extract_prefix_content(text: str, prefixes: tuple[str, ...]) -> str | None:
