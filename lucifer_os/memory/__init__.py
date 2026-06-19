@@ -7,6 +7,7 @@ from lucifer_os.memory.executor import MemoryCommandExecutionResult, MemoryComma
 from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType
 from lucifer_os.memory.pending import InMemoryPendingMemoryActionStore, PendingMemoryAction, PendingMemoryActionConfirmationResult, PendingMemoryActionService, PendingMemoryActionStore, PendingMemoryActionType
 from lucifer_os.memory.policy import MemoryDecision, MemoryDeleteRequest, MemoryPolicy, MemoryUpdateRequest, MemoryWriteRequest
+from lucifer_os.memory.resolver import MemoryTargetCandidate, MemoryTargetResolutionOutcome, MemoryTargetResolutionResult, MemoryTargetResolver
 from lucifer_os.memory.retrieval import MemoryQuery, MemoryRetrievalService, MemorySearchResult
 from lucifer_os.memory.service import MemoryOperationResult, MemoryService
 from lucifer_os.memory.sqlite_store import SQLiteMemoryStore
@@ -38,6 +39,10 @@ __all__ = [
     "MemoryScope",
     "MemoryService",
     "MemoryStore",
+    "MemoryTargetCandidate",
+    "MemoryTargetResolutionOutcome",
+    "MemoryTargetResolutionResult",
+    "MemoryTargetResolver",
     "MemoryType",
     "MemoryUpdateRequest",
     "MemoryWriteRequest",
