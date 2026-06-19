@@ -5,6 +5,7 @@ from enum import Enum
 from uuid import uuid4
 
 from lucifer_os.memory.commands import MemoryCommandType
+from lucifer_os.memory.pending import PendingMemoryAction, PendingMemoryActionType
 from lucifer_os.memory.resolver import MemoryTargetCandidate
 
 
@@ -13,11 +14,17 @@ class MemoryCandidateSelectionOutcome(str, Enum):
     REJECTED = "rejected"
 
 
+class MemoryCandidateSelectionPreparationOutcome(str, Enum):
+    PREPARED = "prepared"
+    REJECTED = "rejected"
+
+
 @dataclass(frozen=True, slots=True)
 class MemoryCandidateSelectionRequest:
     command_type: MemoryCommandType
     source_text: str
     candidates: tuple[MemoryTargetCandidate, ...]
+    proposed_content: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
 
     def __post_init__(self) -> None:
@@ -34,6 +41,14 @@ class MemoryCandidateSelectionRequest:
         if len(candidate_ids) != len(set(candidate_ids)):
             raise ValueError("Memory candidate selection candidates must have unique memory ids.")
 
+        if self.command_type == MemoryCommandType.CORRECT:
+            if self.proposed_content is None or not self.proposed_content.strip():
+                raise ValueError("Correction candidate selection requires proposed content.")
+
+        if self.command_type == MemoryCommandType.DELETE:
+            if self.proposed_content is not None:
+                raise ValueError("Delete candidate selection must not include proposed content.")
+
 
 @dataclass(frozen=True, slots=True)
 class MemoryCandidateSelectionResult:
@@ -49,6 +64,22 @@ class MemoryCandidateSelectionResult:
             raise ValueError("Memory candidate selection result request_id cannot be empty.")
         if self.outcome == MemoryCandidateSelectionOutcome.SELECTED and not self.selected_memory_id:
             raise ValueError("Selected memory candidate result requires selected_memory_id.")
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryCandidateSelectionPreparationResult:
+    outcome: MemoryCandidateSelectionPreparationOutcome
+    explanation: str
+    pending_action: PendingMemoryAction | None = None
+
+    def __post_init__(self) -> None:
+        if not self.explanation.strip():
+            raise ValueError("Memory candidate selection preparation explanation cannot be empty.")
+        if (
+            self.outcome == MemoryCandidateSelectionPreparationOutcome.PREPARED
+            and self.pending_action is None
+        ):
+            raise ValueError("Prepared candidate selection result requires pending_action.")
 
 
 class MemoryCandidateSelector:
@@ -78,4 +109,71 @@ class MemoryCandidateSelector:
             outcome=MemoryCandidateSelectionOutcome.REJECTED,
             explanation="Selected memory candidate does not belong to this request.",
             request_id=request.id,
+        )
+
+
+class MemoryCandidateSelectionPendingActionBuilder:
+    def prepare(
+        self,
+        request: MemoryCandidateSelectionRequest,
+        selection: MemoryCandidateSelectionResult,
+    ) -> MemoryCandidateSelectionPreparationResult:
+        if selection.request_id != request.id:
+            return MemoryCandidateSelectionPreparationResult(
+                outcome=MemoryCandidateSelectionPreparationOutcome.REJECTED,
+                explanation="Selected memory candidate does not belong to this request.",
+            )
+
+        if (
+            selection.outcome != MemoryCandidateSelectionOutcome.SELECTED
+            or selection.selected_memory_id is None
+            or not selection.selected_memory_id.strip()
+        ):
+            return MemoryCandidateSelectionPreparationResult(
+                outcome=MemoryCandidateSelectionPreparationOutcome.REJECTED,
+                explanation="No valid memory candidate selection is available.",
+            )
+
+        candidate_ids = {candidate.memory.id for candidate in request.candidates}
+        if selection.selected_memory_id not in candidate_ids:
+            return MemoryCandidateSelectionPreparationResult(
+                outcome=MemoryCandidateSelectionPreparationOutcome.REJECTED,
+                explanation="Selected memory candidate does not belong to this request.",
+            )
+
+        if request.command_type == MemoryCommandType.CORRECT:
+            action = PendingMemoryAction(
+                action_type=PendingMemoryActionType.CORRECT,
+                command_type=MemoryCommandType.CORRECT,
+                explanation="Correct this memory after confirmation.",
+                source_text=request.source_text,
+                memory_id=selection.selected_memory_id,
+                proposed_content=request.proposed_content,
+                metadata={
+                    "source": "memory-candidate-selection",
+                    "selection_request_id": request.id,
+                },
+            )
+        elif request.command_type == MemoryCommandType.DELETE:
+            action = PendingMemoryAction(
+                action_type=PendingMemoryActionType.DELETE,
+                command_type=MemoryCommandType.DELETE,
+                explanation="Delete this memory after confirmation.",
+                source_text=request.source_text,
+                memory_id=selection.selected_memory_id,
+                metadata={
+                    "source": "memory-candidate-selection",
+                    "selection_request_id": request.id,
+                },
+            )
+        else:
+            return MemoryCandidateSelectionPreparationResult(
+                outcome=MemoryCandidateSelectionPreparationOutcome.REJECTED,
+                explanation="Unsupported memory candidate selection command type.",
+            )
+
+        return MemoryCandidateSelectionPreparationResult(
+            outcome=MemoryCandidateSelectionPreparationOutcome.PREPARED,
+            explanation="Selected memory candidate is ready for pending confirmation.",
+            pending_action=action,
         )
