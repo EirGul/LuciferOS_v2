@@ -1,12 +1,29 @@
 # Memory Persistence Design
 
-## Milestone 92 status
+## Current status after Milestone 97
 
-This document defines the persistence design for the LuciferOS memory subsystem.
+LuciferOS now has an isolated persistent memory foundation.
 
-Milestone 92 is design-only.
+Implemented:
 
-It must not connect memory to Core, API, HUD, provider prompts, voice, tools, or runtime adapters.
+- SQLiteMemoryStore
+- shared MemoryStore contract tests
+- add/get/list/update/delete support
+- MemoryService support for SQLite persistence
+- policy-gated update/correction flow
+- audit events for update/correction
+- persistence across new SQLite store instances
+
+Still intentionally not implemented:
+
+- Core memory integration
+- API memory endpoints
+- HUD memory editing
+- provider prompt injection
+- automatic memory extraction
+- voice memory commands
+- semantic or vector retrieval
+- PC-control memory integration
 
 ## Purpose
 
@@ -15,7 +32,7 @@ LuciferOS needs durable memory without turning memory into uncontrolled prompt t
 Persistent memory must preserve the existing memory architecture:
 
 - explicit writes only
-- policy-gated writes and deletes
+- policy-gated writes, updates and deletes
 - audit events for meaningful changes
 - bounded retrieval
 - separated scopes
@@ -24,7 +41,7 @@ Persistent memory must preserve the existing memory architecture:
 
 ## Store strategy
 
-The preferred durable backend is SQLite.
+The durable backend is SQLite.
 
 Reasons:
 
@@ -33,7 +50,7 @@ Reasons:
 - available without server infrastructure
 - transactional
 - easy to back up
-- portable across Windows, Linux, and macOS
+- portable across Windows, Linux and macOS
 - suitable for structured memory records and audit metadata
 
 JSON may be used only for temporary debug or export flows.
@@ -42,71 +59,80 @@ JSON must not become the primary durable memory backend.
 
 ## Store contract
 
-Persistent stores must implement the existing MemoryStore interface.
+Persistent stores must implement the MemoryStore interface.
 
-The existing InMemoryMemoryStore must remain valid and useful for tests, temporary sessions, and offline safe mode.
+The MemoryStore contract supports:
 
-Persistent storage must not require changes to Core, HUD, API, providers, or runtime adapters.
+- add
+- get
+- list
+- update
+- delete
 
-## Required durable fields
+The existing InMemoryMemoryStore must remain valid and useful for tests, temporary sessions and offline safe mode.
 
-A persistent MemoryItem record must preserve:
+Persistent storage must not require changes to Core, HUD, API, providers or runtime adapters.
+
+## SQLite durable fields
+
+SQLiteMemoryStore preserves:
 
 - memory id
 - memory type
 - memory scope
 - content
+- source
+- confidence
+- tags
 - metadata
 - creation timestamp
-- update timestamp when applicable
-- deletion state or deletion timestamp when applicable
+- update timestamp
 
-The store must support project-scoped memory separately from global memory.
+The store supports project-scoped memory separately from global memory.
 
 ## Persistence behavior
 
-The persistent store must support:
+The persistent store supports:
 
 - create memory item
 - retrieve memory item by id
 - list memory items
-- search memory items through the retrieval layer
 - update or correct memory item
 - delete memory item
-- preserve audit-relevant metadata
-
-Delete behavior must be explicit.
+- preserve metadata and timestamps
 
 Destructive deletes must remain policy-gated before the store is called.
 
-## SQLite design direction
+Corrections and updates must remain policy-gated before the store is called.
 
-The likely SQLite table should be named memory_items.
+## SQLite table
 
-The table should include stable columns for:
+The SQLite table is named memory_items.
+
+The table includes stable columns for:
 
 - id
+- content
 - memory_type
 - scope
-- content
+- source
+- confidence
+- tags_json
 - metadata_json
 - created_at
 - updated_at
-- deleted_at
 
-Indexes should support lookup by:
+Indexes support lookup/filtering by:
 
-- id
-- memory_type
 - scope
+- memory_type
 - created_at
-- deleted_at
 
-Semantic or vector search is intentionally out of scope for Milestone 92.
+Semantic or vector search is intentionally out of scope at this stage.
 
 ## Boundaries
 
-Milestone 92 must not add:
+The persistence layer must not add:
 
 - provider prompt injection
 - automatic memory extraction
@@ -117,8 +143,23 @@ Milestone 92 must not add:
 - semantic or vector retrieval
 - PC-control memory integration
 
-## Next implementation milestone
+## Next milestone direction
 
-Milestone 93 may introduce a SQLiteMemoryStore implementation behind the existing MemoryStore interface.
+After Milestone 98, the next safe step is user-facing memory command design.
 
-Milestone 93 should keep InMemoryMemoryStore unchanged and should test both stores against the same behavior where practical.
+Do not connect memory to provider prompts yet.
+
+Do not expose memory editing through HUD or API before command semantics, confirmation behavior and audit expectations are clear.
+
+
+## Historical Milestone 92 wording
+
+Milestone 92 is design-only.
+
+This sentence is preserved as historical architecture wording. The implementation has since advanced through SQLiteMemoryStore and service-level persistence tests.
+
+The preferred durable backend is SQLite.
+
+Persistent stores must implement the existing MemoryStore interface.
+
+It must not connect memory to Core, API, HUD, provider prompts, voice, tools, or runtime adapters.
