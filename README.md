@@ -19,7 +19,10 @@ Current milestone:
 
 - [LuciferOS Manifest](docs/luciferos_manifest.md)
 - [Runtime Modes](docs/runtime_modes.md)
+- [Memory Architecture](docs/memory_architecture.md)
 
 The manifest defines the architectural boundaries, memory and learning requirements, provider strategy, safety rules, and long-term goals for LuciferOS.
 
 The runtime modes document explains the verified safe/offline and local Ollama API startup modes.
+
+The memory architecture document explains the isolated memory subsystem, policy gate, audit model, retrieval contract, context builder, and current non-integration boundaries.
