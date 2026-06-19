@@ -3,6 +3,7 @@
 from lucifer_os.memory.audit import InMemoryMemoryAuditSink, MemoryAuditAction, MemoryAuditEvent, MemoryAuditSink
 from lucifer_os.memory.commands import MemoryCommand, MemoryCommandParser, MemoryCommandType
 from lucifer_os.memory.context import MemoryContext, MemoryContextBuilder
+from lucifer_os.memory.executor import MemoryCommandExecutionResult, MemoryCommandExecutionStatus, MemoryCommandExecutor
 from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType
 from lucifer_os.memory.pending import InMemoryPendingMemoryActionStore, PendingMemoryAction, PendingMemoryActionConfirmationResult, PendingMemoryActionService, PendingMemoryActionStore, PendingMemoryActionType
 from lucifer_os.memory.policy import MemoryDecision, MemoryDeleteRequest, MemoryPolicy, MemoryUpdateRequest, MemoryWriteRequest
@@ -16,6 +17,9 @@ __all__ = [
     "InMemoryMemoryStore",
     "InMemoryPendingMemoryActionStore",
     "MemoryCommand",
+    "MemoryCommandExecutionResult",
+    "MemoryCommandExecutionStatus",
+    "MemoryCommandExecutor",
     "MemoryCommandParser",
     "MemoryCommandType",
     "MemoryItem",
