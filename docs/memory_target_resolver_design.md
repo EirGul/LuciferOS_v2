@@ -1,10 +1,10 @@
 # Memory Target Resolver Design
 
-## Milestone 108 status
+## Milestone 111 status
 
-Milestone 108 is design-only.
+MemoryTargetResolver now exists as an isolated memory-layer model.
 
-It must not connect target resolution to IntentRouter, Core, API, HUD, provider prompts, voice, tools, or runtime adapters.
+It must not connect target resolution to IntentRouter, Core, API, HUD, provider prompts, voice, tools, runtime adapters, or MemoryCommandExecutor.
 
 ## Purpose
 
@@ -14,36 +14,41 @@ The resolver must prevent guessing.
 
 The resolver must protect against changing or deleting the wrong memory.
 
-## Current executor boundary
+## Current implemented resolver behavior
 
-MemoryCommandExecutor currently prepares correction and delete actions only when a MemoryCommand contains an explicit memory id.
+The current MemoryTargetResolver can:
 
-Commands without an explicit memory id are rejected before execution.
+- represent target resolution outcomes
+- represent memory target candidates
+- represent target resolution results
+- validate candidate reason and score
+- validate safe resolution invariants
+- resolve explicit memory ids against a bounded candidate list
+- resolve query text through normalized content substring matching
+- return no_match when nothing is safe
+- return single_safe_match when exactly one bounded content match exists
+- return multiple_candidates when more than one bounded content match exists
+- bound candidate processing with max_candidates
 
-This is intentional.
+## Current resolver boundaries
 
-## Resolver responsibility
+MemoryTargetResolver belongs to the memory layer only.
 
-A future MemoryTargetResolver may:
+It does not execute memory changes.
 
-- accept a bounded candidate list
-- accept a user query
-- compare query text against memory content and metadata
-- return zero, one, or many candidate memories
-- mark whether resolution is safe for confirmation
-- produce a user-facing explanation
+It does not call MemoryService.update_memory.
 
-The resolver must not execute memory changes.
+It does not call MemoryService.delete_memory.
 
-The resolver must not call MemoryService.update_memory.
+It does not call MemoryCommandExecutor.
 
-The resolver must not call MemoryService.delete_memory.
+It does not inject memory into provider prompts.
 
-The resolver must not inject memory into provider prompts.
+It does not mutate MemoryItem objects.
 
 ## Resolution outcomes
 
-A resolver result must support these outcomes:
+A resolver result supports these outcomes:
 
 - no_match
 - single_safe_match
@@ -61,15 +66,19 @@ One concrete memory id may come from:
 - a user-selected item from a bounded result list
 - a resolver result with exactly one safe candidate
 
+Current implementation supports explicit id matching and single safe content-query matching only.
+
 ## Ambiguity rules
 
-If no candidate exists, the system must report that no matching memory was found.
+If no candidate exists, the resolver returns no_match.
 
-If multiple candidates exist, the system must ask the user to choose.
+If multiple candidates exist, the resolver returns multiple_candidates.
 
-If confidence is low, the system must ask the user to choose.
+Multiple candidates are never safe_for_confirmation.
 
-If the query matches sensitive or high-impact memory, the system must require confirmation before change.
+If confidence is low, a future implementation must ask the user to choose.
+
+If the query matches sensitive or high-impact memory, a future implementation must still require confirmation before change.
 
 ## Bounded candidate rule
 
@@ -81,17 +90,20 @@ The resolver must never dump the entire memory store into a provider prompt.
 
 The resolver must prefer deterministic matching before any future semantic matching.
 
+The current resolver processes only candidates inside max_candidates.
+
 ## Deterministic matching first
 
-Initial resolver implementation should use deterministic matching only:
+Current resolver implementation uses deterministic matching only:
 
-- exact memory id match
-- exact content substring match
+- explicit memory id match
 - normalized content substring match
-- tag match
-- metadata field match
 
-Semantic or vector matching is out of scope for the first resolver implementation.
+The current resolver does not match tags.
+
+The current resolver does not match metadata.
+
+Semantic or vector matching is out of scope for the current resolver implementation.
 
 ## User selection flow
 
@@ -103,7 +115,52 @@ Selection must create or update a pending action, not execute immediately.
 
 The pending action must still require confirmation for correction or deletion.
 
+User selection flow is not implemented yet.
+
+## Current regression guarantees
+
+The test suite currently verifies that:
+
+- empty memory id returns no_match
+- empty candidate list returns no_match
+- metadata is not matched before metadata matching is implemented
+- tags are not matched before tag matching is implemented
+- multiple candidates are never safe_for_confirmation
+- explicit-id resolution respects max_candidates
+- query resolution respects max_candidates
+- safe result invariant requires selected_memory_id
+- resolver does not mutate memory items
+
 ## Non-goals
+
+The resolver currently does not add:
+
+- executor integration
+- IntentRouter integration
+- Core integration
+- API endpoints
+- HUD memory panels
+- provider prompt injection
+- automatic memory extraction
+- semantic/vector search
+- tag matching
+- metadata matching
+- OS/tool actions
+- voice integration
+
+## Historical Milestone 108 compatibility notes
+
+Milestone 108 is design-only.
+
+It must not connect target resolution to IntentRouter, Core, API, HUD, provider prompts, voice, tools, or runtime adapters.
+
+Initial resolver implementation should use deterministic matching only:
+
+- exact memory id match
+- exact content substring match
+- normalized content substring match
+- tag match
+- metadata field match
 
 Milestone 108 must not add:
 
@@ -121,6 +178,8 @@ Milestone 108 must not add:
 
 ## Next milestone direction
 
-The next safe step is a small isolated MemoryTargetResolver model and result type.
+The next safe step is to design how resolver results may be used to prepare pending correction and delete actions.
 
-That model should be tested without connecting it to MemoryCommandExecutor, Core, API, HUD, providers, tools or runtime.
+Runtime integration should still wait until resolver-to-executor behavior is documented and tested.
+
+Semantic or vector matching is out of scope for the first resolver implementation.
