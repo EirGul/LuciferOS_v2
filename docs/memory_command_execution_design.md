@@ -1,30 +1,50 @@
 # Memory Command Execution Design
 
-## Milestone 101 status
+## Milestone 107 status
 
-Milestone 101 is design-only.
+MemoryCommandExecutor now exists as an isolated memory-layer component.
 
 It must not connect memory command execution to IntentRouter, Core, API, HUD, provider prompts, voice, tools, or runtime adapters.
 
 ## Purpose
 
-Memory command execution is the future layer that will translate parsed MemoryCommand objects into safe MemoryService operations.
+Memory command execution translates parsed MemoryCommand objects into safe MemoryService operations.
 
 The executor must not bypass MemoryService, MemoryPolicy or MemoryAuditSink.
 
+## Current implemented executor behavior
+
+The current MemoryCommandExecutor can:
+
+- execute remember commands through MemoryService.add_memory
+- create pending remember actions when MemoryService requires confirmation
+- list memories with max_results bounds
+- search memories with bounded substring matching
+- prepare correction commands as pending actions when an explicit memory id exists
+- prepare delete commands as pending actions when an explicit memory id exists
+- explain memory policy with a read-only response
+- confirm one concrete pending action
+- cancel one concrete pending action
+- execute confirmed pending remember actions
+- execute confirmed pending correction actions
+- execute confirmed pending delete actions
+- reject normal conversation as not_memory_command
+
 ## Execution boundary
 
-A future MemoryCommandExecutor may execute:
+MemoryCommandExecutor belongs to the memory layer only.
 
-- remember commands through MemoryService.add_memory
-- list commands through bounded memory listing or retrieval
-- search commands through MemoryRetrievalService
-- correct commands through MemoryService.update_memory
-- delete commands through MemoryService.delete_memory
-- explain policy commands through a read-only policy explanation response
-- confirm or cancel commands through a pending-action mechanism
+It is not a runtime router.
 
-Milestone 101 must not implement this executor yet.
+It is not a Core integration.
+
+It is not an API handler.
+
+It is not a HUD controller.
+
+It is not a provider prompt builder.
+
+It is not a tool or OS action executor.
 
 ## Safety rules
 
@@ -36,20 +56,21 @@ Milestone 101 must not implement this executor yet.
 - Executor logic must preserve audit events.
 - Executor logic must not inject memory into provider prompts.
 - Executor logic must not call tools or OS actions.
+- Normal conversation must not be stored automatically.
 
 ## Pending actions
 
-Some memory commands may produce a pending action instead of executing immediately.
+Some memory commands produce a pending action instead of executing immediately.
 
-Pending actions are required for:
+Pending actions are used for:
 
 - high-impact remember commands
-- high-impact correction commands
-- all delete commands
-- ambiguous correction targets
-- ambiguous delete targets
+- correction commands
+- delete commands
+- ambiguous future correction targets
+- ambiguous future delete targets
 
-A pending action must include:
+A pending action includes:
 
 - action type
 - memory command type
@@ -60,23 +81,32 @@ A pending action must include:
 - confirmation requirement
 - human-readable explanation
 
-## Confirmation rules
+## Confirmation behavior
 
-Confirmation must be bound to one concrete pending action.
+Confirmation is bound to one concrete pending action.
 
 Generic confirmation phrases such as ja, bekreft or confirm must not execute unrelated actions.
 
 Stale pending actions must not execute.
 
-Cancel commands must clear the pending action without changing memory.
+Confirming a pending action clears it before execution.
+
+The same pending action must not execute twice.
+
+Cancel commands clear the pending action without changing memory.
+
+Confirm after cancel must not execute anything.
+
+Cancel after confirm must not execute anything.
 
 ## Correct and delete target resolution
 
 Correct and delete commands must not guess the target memory item.
 
-They may execute only when one of these is true:
+They may prepare execution only when the command contains an explicit memory id.
 
-- the command contains an explicit memory id
+Future resolver milestones may allow correction or deletion when:
+
 - the user has selected one memory from a bounded result list
 - a previous search produced exactly one safe candidate and the user confirms it
 
@@ -88,11 +118,60 @@ If no candidate exists, the system must report that no matching memory was found
 
 List, search and explain-policy commands are read-only.
 
-Read-only operations should not require confirmation.
+Read-only operations do not require confirmation.
 
-Read-only operations must remain bounded and must not dump all memory into prompts.
+Read-only operations must remain bounded.
+
+Read-only operations must not dump all memory into provider prompts.
+
+## Current regression guarantees
+
+The test suite currently verifies that:
+
+- confirm cannot execute the same pending action twice
+- stale pending actions execute nothing
+- cancel after confirm executes nothing
+- confirm after cancel executes nothing
+- unknown memory ids do not create false correction success
+- unknown memory ids do not report deleted success
+- ordinary conversation is not treated as a memory command
+- empty search commands are rejected
 
 ## Non-goals
+
+The executor currently does not add:
+
+- IntentRouter integration
+- Core integration
+- API endpoints
+- HUD memory panels
+- provider prompt injection
+- automatic memory extraction
+- semantic/vector search
+- OS/tool actions
+- voice integration
+
+## Next milestone direction
+
+The next safe step is to add a small memory command resolver design.
+
+That resolver should define how selected memories become explicit memory ids without guessing.
+
+Runtime integration should still wait until command execution, pending confirmation and target resolution are documented and tested.
+
+## Historical Milestone 101 compatibility notes
+
+Milestone 101 is design-only.
+
+Pending actions are required for:
+
+- high-impact remember commands
+- high-impact correction commands
+- all delete commands
+- ambiguous correction targets
+- ambiguous delete targets
+
+Confirmation must be bound to one concrete pending action.
 
 Milestone 101 must not add:
 
@@ -104,9 +183,3 @@ Milestone 101 must not add:
 - automatic memory extraction
 - semantic/vector search
 - OS/tool actions
-
-## Next milestone direction
-
-After Milestone 101, the next safe step is a small pending memory action model.
-
-That model should remain isolated from Core, API, HUD and providers.
