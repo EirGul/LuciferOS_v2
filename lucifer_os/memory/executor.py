@@ -165,12 +165,6 @@ class MemoryCommandExecutor:
         )
 
     def _prepare_correct(self, command: MemoryCommand) -> MemoryCommandExecutionResult:
-        if command.memory_id is None or not command.memory_id.strip():
-            return MemoryCommandExecutionResult(
-                status=MemoryCommandExecutionStatus.REJECTED,
-                message="Correct command requires an explicit memory id before execution.",
-                command=command,
-            )
         if command.content is None or not command.content.strip():
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
@@ -178,12 +172,43 @@ class MemoryCommandExecutor:
                 command=command,
             )
 
+        memory_id = command.memory_id
+
+        if memory_id is None or not memory_id.strip():
+            if command.query is None or not command.query.strip():
+                return MemoryCommandExecutionResult(
+                    status=MemoryCommandExecutionStatus.REJECTED,
+                    message="Correct command requires an explicit memory id or a target query.",
+                    command=command,
+                )
+
+            candidates = tuple(self.memory_service.list_memories()[: self.max_results])
+            resolution = self.target_resolver.resolve_query(command.query, candidates)
+            plan = self.resolution_planner.plan(command.type, resolution)
+
+            if plan.action == MemoryResolutionPlanAction.PREPARE_PENDING_ACTION:
+                memory_id = plan.selected_memory_id
+            elif plan.action == MemoryResolutionPlanAction.ASK_USER_TO_CHOOSE:
+                return MemoryCommandExecutionResult(
+                    status=MemoryCommandExecutionStatus.AWAITING_USER_SELECTION,
+                    message="Multiple matching memories found; user selection is required.",
+                    command=command,
+                    memories=tuple(candidate.memory for candidate in plan.candidates),
+                )
+            else:
+                return MemoryCommandExecutionResult(
+                    status=MemoryCommandExecutionStatus.REJECTED,
+                    message=plan.explanation,
+                    command=command,
+                    memories=tuple(candidate.memory for candidate in plan.candidates),
+                )
+
         pending_action = PendingMemoryAction(
             action_type=PendingMemoryActionType.CORRECT,
             command_type=command.type,
             explanation="Correct this memory after confirmation.",
             source_text=command.raw_text,
-            memory_id=command.memory_id,
+            memory_id=memory_id,
             proposed_content=command.content,
             metadata={
                 "type": self.default_type.value,

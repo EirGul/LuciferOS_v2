@@ -87,7 +87,7 @@ def test_memory_command_executor_rejects_correct_without_memory_id():
     result = executor.execute(command)
 
     assert result.status == MemoryCommandExecutionStatus.REJECTED
-    assert result.message == "Correct command requires an explicit memory id before execution."
+    assert result.message == "Correct command requires an explicit memory id or a target query."
 
 
 def test_memory_command_executor_prepares_correct_with_memory_id_as_pending_action():
