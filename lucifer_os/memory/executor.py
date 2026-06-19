@@ -17,11 +17,11 @@ from lucifer_os.memory.service import MemoryOperationResult, MemoryService
 class MemoryCommandExecutionStatus(str, Enum):
     EXECUTED = "executed"
     PENDING_CONFIRMATION = "pending_confirmation"
+    AWAITING_USER_SELECTION = "awaiting_user_selection"
     CONFIRMED_PENDING = "confirmed_pending"
     CANCELLED_PENDING = "cancelled_pending"
     REJECTED = "rejected"
     NOT_MEMORY_COMMAND = "not_memory_command"
-
 
 @dataclass(frozen=True, slots=True)
 class MemoryCommandExecutionResult:
