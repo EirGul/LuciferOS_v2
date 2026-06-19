@@ -6,6 +6,7 @@ from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType
 from lucifer_os.memory.policy import MemoryDecision, MemoryDeleteRequest, MemoryPolicy, MemoryWriteRequest
 from lucifer_os.memory.retrieval import MemoryQuery, MemoryRetrievalService, MemorySearchResult
 from lucifer_os.memory.service import MemoryOperationResult, MemoryService
+from lucifer_os.memory.sqlite_store import SQLiteMemoryStore
 from lucifer_os.memory.store import InMemoryMemoryStore, MemoryStore
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "MemoryStore",
     "MemoryType",
     "MemoryWriteRequest",
+    "SQLiteMemoryStore",
 ]
