@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from lucifer_os.memory.audit import InMemoryMemoryAuditSink, MemoryAuditAction, MemoryAuditEvent, MemoryAuditSink
 from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType
 from lucifer_os.memory.policy import MemoryDeleteRequest, MemoryPolicy, MemoryWriteRequest
 from lucifer_os.memory.store import MemoryStore
@@ -18,9 +19,15 @@ class MemoryOperationResult:
 
 
 class MemoryService:
-    def __init__(self, store: MemoryStore, policy: MemoryPolicy | None = None) -> None:
+    def __init__(
+        self,
+        store: MemoryStore,
+        policy: MemoryPolicy | None = None,
+        audit_sink: MemoryAuditSink | None = None,
+    ) -> None:
         self.store = store
         self.policy = policy or MemoryPolicy()
+        self.audit_sink = audit_sink or InMemoryMemoryAuditSink()
 
     def add_memory(
         self,
@@ -33,6 +40,19 @@ class MemoryService:
         metadata: dict[str, Any] | None = None,
         confirmed: bool = False,
     ) -> MemoryOperationResult:
+        self.audit_sink.record(
+            MemoryAuditEvent(
+                action=MemoryAuditAction.WRITE_REQUESTED,
+                reason="Memory write requested.",
+                source=source,
+                metadata={
+                    "type": type.value,
+                    "scope": scope.value,
+                    "confirmed": confirmed,
+                },
+            )
+        )
+
         decision = self.policy.evaluate_write(
             MemoryWriteRequest(
                 content=content,
@@ -43,6 +63,17 @@ class MemoryService:
         )
 
         if not decision.allowed:
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.WRITE_REJECTED,
+                    reason=decision.audit_reason,
+                    source=source,
+                    metadata={
+                        "type": type.value,
+                        "scope": scope.value,
+                    },
+                )
+            )
             return MemoryOperationResult(
                 allowed=False,
                 requires_confirmation=decision.requires_confirmation,
@@ -50,6 +81,17 @@ class MemoryService:
             )
 
         if decision.requires_confirmation and not confirmed:
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.WRITE_REQUIRES_CONFIRMATION,
+                    reason=decision.audit_reason,
+                    source=source,
+                    metadata={
+                        "type": type.value,
+                        "scope": scope.value,
+                    },
+                )
+            )
             return MemoryOperationResult(
                 allowed=True,
                 requires_confirmation=True,
@@ -66,6 +108,19 @@ class MemoryService:
             metadata=metadata or {},
         )
         stored_item = self.store.add(item)
+
+        self.audit_sink.record(
+            MemoryAuditEvent(
+                action=MemoryAuditAction.WRITE_STORED,
+                reason=decision.audit_reason,
+                memory_id=stored_item.id,
+                source=source,
+                metadata={
+                    "type": type.value,
+                    "scope": scope.value,
+                },
+            )
+        )
 
         return MemoryOperationResult(
             allowed=True,
@@ -84,14 +139,32 @@ class MemoryService:
     ) -> list[MemoryItem]:
         return self.store.list(scope=scope, type=type)
 
-    def delete_memory(self, memory_id: str, confirmed: bool = False) -> MemoryOperationResult:
-        decision = self.policy.evaluate_delete(
-            request=__import__("lucifer_os.memory.policy", fromlist=["MemoryDeleteRequest"]).MemoryDeleteRequest(
-                memory_id=memory_id,
+    def delete_memory(self, memory_id: str, confirmed: bool = False, source: str = "user") -> MemoryOperationResult:
+        self.audit_sink.record(
+            MemoryAuditEvent(
+                action=MemoryAuditAction.DELETE_REQUESTED,
+                reason="Memory delete requested.",
+                memory_id=memory_id.strip() or None,
+                source=source,
+                metadata={
+                    "confirmed": confirmed,
+                },
             )
         )
 
+        decision = self.policy.evaluate_delete(
+            MemoryDeleteRequest(memory_id=memory_id, source=source)
+        )
+
         if not decision.allowed:
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.DELETE_REJECTED,
+                    reason=decision.audit_reason,
+                    memory_id=memory_id.strip() or None,
+                    source=source,
+                )
+            )
             return MemoryOperationResult(
                 allowed=False,
                 requires_confirmation=decision.requires_confirmation,
@@ -99,6 +172,14 @@ class MemoryService:
             )
 
         if decision.requires_confirmation and not confirmed:
+            self.audit_sink.record(
+                MemoryAuditEvent(
+                    action=MemoryAuditAction.DELETE_REQUIRES_CONFIRMATION,
+                    reason=decision.audit_reason,
+                    memory_id=memory_id,
+                    source=source,
+                )
+            )
             return MemoryOperationResult(
                 allowed=True,
                 requires_confirmation=True,
@@ -107,6 +188,18 @@ class MemoryService:
             )
 
         deleted = self.store.delete(memory_id)
+
+        self.audit_sink.record(
+            MemoryAuditEvent(
+                action=MemoryAuditAction.DELETE_COMPLETED,
+                reason=decision.audit_reason,
+                memory_id=memory_id,
+                source=source,
+                metadata={
+                    "deleted": deleted,
+                },
+            )
+        )
 
         return MemoryOperationResult(
             allowed=True,
