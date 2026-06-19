@@ -19,19 +19,27 @@ def test_memory_service_can_add_list_get_and_delete_memory():
     store = InMemoryMemoryStore()
     service = MemoryService(store)
 
-    item = service.add_memory(
+    result = service.add_memory(
         content='LuciferOS has a memory subsystem skeleton.',
         type=MemoryType.PROJECT_STATE,
         scope=MemoryScope.PROJECT,
         tags=('luciferos', 'memory'),
     )
 
+    assert result.allowed is True
+    assert result.requires_confirmation is False
+    item = result.item
+    assert item is not None
     assert service.get_memory(item.id) == item
     assert service.list_memories(scope=MemoryScope.PROJECT) == [item]
     assert service.list_memories(type=MemoryType.PROJECT_STATE) == [item]
-    assert service.delete_memory(item.id) is True
+
+    delete_result = service.delete_memory(item.id, confirmed=True)
+    assert delete_result.deleted is True
     assert service.get_memory(item.id) is None
-    assert service.delete_memory(item.id) is False
+
+    second_delete_result = service.delete_memory(item.id, confirmed=True)
+    assert second_delete_result.deleted is False
 
 
 def test_learning_service_only_accepts_explicit_learning_requests():
@@ -43,15 +51,14 @@ def test_learning_service_only_accepts_explicit_learning_requests():
     assert learning.is_explicit_learning_request('hva kan du huske?') is False
 
 
-def test_learning_service_can_store_explicit_memory():
+def test_learning_service_returns_confirmation_result_for_high_impact_memory():
     service = MemoryService(InMemoryMemoryStore())
     learning = LearningService(service)
 
-    item = learning.learn_explicit_memory('husk at Lucifer skal være lokal først')
+    result = learning.learn_explicit_memory('husk at Lucifer skal være lokal først')
 
-    assert item is not None
-    assert item.content == 'Lucifer skal være lokal først'
-    assert item.type == MemoryType.USER_INSTRUCTION
-    assert item.scope == MemoryScope.GLOBAL
-    assert item.source == 'explicit-learning-request'
-    assert service.list_memories() == [item]
+    assert result is not None
+    assert result.allowed is True
+    assert result.requires_confirmation is True
+    assert result.item is None
+    assert service.list_memories() == []
