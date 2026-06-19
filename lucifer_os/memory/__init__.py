@@ -1,6 +1,7 @@
 """Memory and learning subsystem for LuciferOS."""
 
 from lucifer_os.memory.audit import InMemoryMemoryAuditSink, MemoryAuditAction, MemoryAuditEvent, MemoryAuditSink
+from lucifer_os.memory.commands import MemoryCommand, MemoryCommandParser, MemoryCommandType
 from lucifer_os.memory.context import MemoryContext, MemoryContextBuilder
 from lucifer_os.memory.models import MemoryItem, MemoryScope, MemoryType
 from lucifer_os.memory.policy import MemoryDecision, MemoryDeleteRequest, MemoryPolicy, MemoryUpdateRequest, MemoryWriteRequest
@@ -12,6 +13,9 @@ from lucifer_os.memory.store import InMemoryMemoryStore, MemoryStore
 __all__ = [
     "InMemoryMemoryAuditSink",
     "InMemoryMemoryStore",
+    "MemoryCommand",
+    "MemoryCommandParser",
+    "MemoryCommandType",
     "MemoryItem",
     "MemoryAuditAction",
     "MemoryAuditEvent",
