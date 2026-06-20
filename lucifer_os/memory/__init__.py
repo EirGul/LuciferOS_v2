@@ -10,6 +10,7 @@ from lucifer_os.memory.policy import MemoryDecision, MemoryDeleteRequest, Memory
 from lucifer_os.memory.resolution_plan import MemoryResolutionPlan, MemoryResolutionPlanAction, MemoryResolutionPlanner
 from lucifer_os.memory.resolver import MemoryTargetCandidate, MemoryTargetResolutionOutcome, MemoryTargetResolutionResult, MemoryTargetResolver
 from lucifer_os.memory.retrieval import MemoryQuery, MemoryRetrievalService, MemorySearchResult
+from lucifer_os.memory.selection_audit import MemoryCandidateSelectionAuditAction, MemoryCandidateSelectionAuditEvent
 from lucifer_os.memory.selection import InMemoryMemoryCandidateSelectionRequestStore, MemoryCandidateSelectionOutcome, MemoryCandidateSelectionPendingActionBuilder, MemoryCandidateSelectionPreparationOutcome, MemoryCandidateSelectionPreparationResult, MemoryCandidateSelectionRequest, MemoryCandidateSelectionRequestLifecycleResult, MemoryCandidateSelectionRequestService, MemoryCandidateSelectionRequestStore, MemoryCandidateSelectionResult, MemoryCandidateSelector
 from lucifer_os.memory.service import MemoryOperationResult, MemoryService
 from lucifer_os.memory.sqlite_store import SQLiteMemoryStore
@@ -23,6 +24,8 @@ __all__ = [
     "InMemoryMemoryStore",
     "InMemoryPendingMemoryActionStore",
     "MemoryCandidateSelectionOutcome",
+    "MemoryCandidateSelectionAuditEvent",
+    "MemoryCandidateSelectionAuditAction",
     "MemoryCandidateSelectionPreparationResult",
     "MemoryCandidateSelectionPreparationOutcome",
     "MemoryCandidateSelectionPendingActionBuilder",
