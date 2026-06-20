@@ -1,6 +1,7 @@
 from lucifer_os.memory import (
     MemoryItem,
     MemoryQuery,
+    MemoryRetrievalOutcome,
     MemoryRetrievalPurpose,
     MemoryRetrievalService,
     MemoryScope,
@@ -17,6 +18,7 @@ def query(
     purpose: MemoryRetrievalPurpose = MemoryRetrievalPurpose.PROJECT_ASSISTANCE,
 ) -> MemoryQuery:
     return MemoryQuery(
+        request_id="test-milestone-140",
         text=text,
         scopes=scopes,
         types=types,
@@ -99,12 +101,17 @@ def test_conversation_response_denies_global_scope_until_core_context_exists():
 
     assert decision.allowed is False
     assert decision.reason_code == "conversation_scope_not_allowed"
-    assert service.search(
+
+    result = service.retrieve(
         query(
             scopes=(MemoryScope.GLOBAL,),
             purpose=MemoryRetrievalPurpose.CONVERSATION_RESPONSE,
         )
-    ) == []
+    )
+
+    assert result.outcome == MemoryRetrievalOutcome.DENIED
+    assert result.reason_code == "conversation_scope_not_allowed"
+    assert result.matches == ()
 
 
 def test_project_assistance_denies_global_scope_until_trusted_project_context_exists():
@@ -144,7 +151,12 @@ def test_policy_denies_high_impact_types_before_store_is_read():
 
     assert decision.allowed is False
     assert decision.reason_code == "retrieval_type_not_allowed"
-    assert service.search(denied_query) == []
+
+    result = service.retrieve(denied_query)
+
+    assert result.outcome == MemoryRetrievalOutcome.DENIED
+    assert result.reason_code == "retrieval_type_not_allowed"
+    assert result.matches == ()
 
 
 def test_policy_denies_interface_and_tool_scopes_before_store_is_read():
@@ -160,7 +172,12 @@ def test_policy_denies_interface_and_tool_scopes_before_store_is_read():
 
         assert decision.allowed is False
         assert decision.reason_code == "retrieval_scope_not_allowed"
-        assert service.search(denied_query) == []
+
+        result = service.retrieve(denied_query)
+
+        assert result.outcome == MemoryRetrievalOutcome.DENIED
+        assert result.reason_code == "retrieval_scope_not_allowed"
+        assert result.matches == ()
 
 
 def test_retrieval_uses_score_then_memory_id_as_stable_tie_break():
@@ -179,12 +196,15 @@ def test_retrieval_uses_score_then_memory_id_as_stable_tie_break():
     store = OrderedMemoryStore([item_z, item_a])
     service = MemoryRetrievalService(store)
 
-    results = service.search(query(text="LuciferOS retrieval"))
+    retrieval = service.retrieve(query(text="LuciferOS retrieval"))
 
-    assert [result.item.id for result in results] == ["a-memory", "z-memory"]
+    assert [result.item.id for result in retrieval.matches] == [
+        "a-memory",
+        "z-memory",
+    ]
 
 
-def test_retrieval_policy_and_search_do_not_mutate_store_records():
+def test_retrieval_policy_and_retrieve_do_not_mutate_store_records():
     item = MemoryItem(
         id="safe-memory",
         content="LuciferOS retrieval remains read only",
@@ -194,8 +214,8 @@ def test_retrieval_policy_and_search_do_not_mutate_store_records():
     store = OrderedMemoryStore([item])
     service = MemoryRetrievalService(store)
 
-    results = service.search(query(text="retrieval read"))
+    retrieval = service.retrieve(query(text="retrieval read"))
 
-    assert len(results) == 1
+    assert retrieval.result_count == 1
     assert store.items == [item]
-    assert results[0].item.id == item.id
+    assert retrieval.matches[0].item.id == item.id

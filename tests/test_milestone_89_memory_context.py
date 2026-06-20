@@ -4,6 +4,7 @@ from lucifer_os.memory import (
     InMemoryMemoryStore,
     MemoryContextBuilder,
     MemoryQuery,
+    MemoryRetrievalOutcome,
     MemoryRetrievalPurpose,
     MemoryRetrievalService,
     MemoryScope,
@@ -12,7 +13,12 @@ from lucifer_os.memory import (
 )
 
 
-def build_search_results():
+def build_retrieval_result(
+    *,
+    text: str = "LuciferOS PowerShell",
+    limit: int = 5,
+    max_context_chars: int = 1200,
+):
     store = InMemoryMemoryStore()
     service = MemoryService(store)
 
@@ -31,41 +37,39 @@ def build_search_results():
     assert second is not None
 
     retrieval = MemoryRetrievalService(store)
-    return retrieval.search(
+    return retrieval.retrieve(
         MemoryQuery(
-            text="LuciferOS PowerShell",
+            request_id="test-milestone-89",
+            text=text,
             scopes=(MemoryScope.PROJECT,),
             types=(MemoryType.PROJECT_STATE, MemoryType.PREFERENCE),
             purpose=MemoryRetrievalPurpose.PROJECT_ASSISTANCE,
             source="test-milestone-89",
-            limit=5,
+            limit=limit,
+            max_context_chars=max_context_chars,
         )
     )
 
 
 def test_memory_context_builder_rejects_invalid_limits():
     with pytest.raises(ValueError):
-        MemoryContextBuilder(max_items=0)
-
-    with pytest.raises(ValueError):
-        MemoryContextBuilder(max_items=11)
-
-    with pytest.raises(ValueError):
         MemoryContextBuilder(max_chars_per_item=39)
 
     with pytest.raises(ValueError):
         MemoryContextBuilder(max_chars_per_item=1001)
 
-    with pytest.raises(ValueError):
-        MemoryContextBuilder(max_total_chars=79)
+    with pytest.raises(TypeError):
+        MemoryContextBuilder(max_items=1)
 
-    with pytest.raises(ValueError):
-        MemoryContextBuilder(max_total_chars=4001)
+    with pytest.raises(TypeError):
+        MemoryContextBuilder(max_total_chars=1200)
 
 
-def test_memory_context_builder_returns_empty_context_without_results():
-    context = MemoryContextBuilder().build([])
+def test_memory_context_builder_returns_empty_context_without_matches():
+    retrieval = build_retrieval_result(text="nonexistent")
+    context = MemoryContextBuilder().build(retrieval)
 
+    assert retrieval.outcome == MemoryRetrievalOutcome.NO_MATCH
     assert context.text == ""
     assert context.memory_ids == ()
     assert context.truncated is False
@@ -73,8 +77,8 @@ def test_memory_context_builder_returns_empty_context_without_results():
 
 
 def test_memory_context_builder_builds_limited_context_text():
-    results = build_search_results()
-    context = MemoryContextBuilder(max_items=1).build(results)
+    retrieval = build_retrieval_result(limit=1)
+    context = MemoryContextBuilder().build(retrieval)
 
     assert context.is_empty is False
     assert context.text.startswith("Relevant LuciferOS memory:")
@@ -84,8 +88,8 @@ def test_memory_context_builder_builds_limited_context_text():
 
 
 def test_memory_context_builder_includes_type_scope_and_content_only():
-    results = build_search_results()
-    context = MemoryContextBuilder(max_items=2).build(results)
+    retrieval = build_retrieval_result()
+    context = MemoryContextBuilder().build(retrieval)
 
     assert "[project_state/project]" in context.text
     assert "[preference/project]" in context.text
@@ -106,20 +110,21 @@ def test_memory_context_builder_trims_long_memory_content():
     ).item
     assert item is not None
 
-    results = MemoryRetrievalService(store).search(
+    retrieval = MemoryRetrievalService(store).retrieve(
         MemoryQuery(
+            request_id="test-milestone-89-long",
             text="long",
             scopes=(MemoryScope.PROJECT,),
             types=(MemoryType.PROJECT_STATE,),
             purpose=MemoryRetrievalPurpose.PROJECT_ASSISTANCE,
             source="test-milestone-89",
             limit=1,
+            max_context_chars=120,
         )
     )
     context = MemoryContextBuilder(
         max_chars_per_item=50,
-        max_total_chars=120,
-    ).build(results)
+    ).build(retrieval)
 
     assert "…" in context.text
-    assert len(context.text) < 120
+    assert len(context.text) <= 120

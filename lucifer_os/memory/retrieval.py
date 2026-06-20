@@ -13,6 +13,12 @@ class MemoryRetrievalPurpose(str, Enum):
     EXPLICIT_MEMORY_SEARCH = "explicit_memory_search"
 
 
+class MemoryRetrievalOutcome(str, Enum):
+    DENIED = "denied"
+    NO_MATCH = "no_match"
+    MATCHED = "matched"
+
+
 @dataclass(frozen=True, slots=True)
 class MemoryRetrievalDecision:
     allowed: bool
@@ -82,6 +88,7 @@ class MemoryRetrievalPolicy:
 
 @dataclass(frozen=True, slots=True)
 class MemoryQuery:
+    request_id: str
     text: str
     scopes: tuple[MemoryScope, ...]
     types: tuple[MemoryType, ...]
@@ -91,6 +98,10 @@ class MemoryQuery:
     max_context_chars: int = 1200
 
     def __post_init__(self) -> None:
+        if not self.request_id.strip():
+            raise ValueError("Memory query request_id cannot be empty.")
+        if len(self.request_id) > 128:
+            raise ValueError("Memory query request_id cannot exceed 128 characters.")
         if not self.text.strip():
             raise ValueError("Memory query text cannot be empty.")
         if not isinstance(self.purpose, MemoryRetrievalPurpose):
@@ -134,6 +145,103 @@ class MemorySearchResult:
             raise ValueError("Memory search score must be between 0.0 and 1.0.")
 
 
+@dataclass(frozen=True, slots=True)
+class MemoryRetrievalResult:
+    request_id: str
+    source: str
+    purpose: MemoryRetrievalPurpose
+    outcome: MemoryRetrievalOutcome
+    reason_code: str
+    applied_scopes: tuple[MemoryScope, ...]
+    applied_types: tuple[MemoryType, ...]
+    matches: tuple[MemorySearchResult, ...]
+    result_count: int
+    result_limit: int
+    max_context_chars: int
+
+    def __post_init__(self) -> None:
+        if not self.request_id.strip():
+            raise ValueError("Memory retrieval result request_id cannot be empty.")
+        if len(self.request_id) > 128:
+            raise ValueError(
+                "Memory retrieval result request_id cannot exceed 128 characters."
+            )
+        if not self.source.strip():
+            raise ValueError("Memory retrieval result source cannot be empty.")
+        if not isinstance(self.purpose, MemoryRetrievalPurpose):
+            raise ValueError(
+                "Memory retrieval result purpose must be a MemoryRetrievalPurpose."
+            )
+        if not isinstance(self.outcome, MemoryRetrievalOutcome):
+            raise ValueError(
+                "Memory retrieval result outcome must be a MemoryRetrievalOutcome."
+            )
+        if not self.reason_code.strip():
+            raise ValueError("Memory retrieval result reason_code cannot be empty.")
+        if len(self.reason_code) > 128:
+            raise ValueError(
+                "Memory retrieval result reason_code cannot exceed 128 characters."
+            )
+        if not self.applied_scopes:
+            raise ValueError(
+                "Memory retrieval result must include at least one applied scope."
+            )
+        if not self.applied_types:
+            raise ValueError(
+                "Memory retrieval result must include at least one applied memory type."
+            )
+        if len(set(self.applied_scopes)) != len(self.applied_scopes):
+            raise ValueError(
+                "Memory retrieval result applied_scopes must not contain duplicates."
+            )
+        if len(set(self.applied_types)) != len(self.applied_types):
+            raise ValueError(
+                "Memory retrieval result applied_types must not contain duplicates."
+            )
+        if self.result_count != len(self.matches):
+            raise ValueError(
+                "Memory retrieval result result_count must equal match count."
+            )
+        if self.result_limit < 1 or self.result_limit > 25:
+            raise ValueError(
+                "Memory retrieval result result_limit must be between 1 and 25."
+            )
+        if self.result_count > self.result_limit:
+            raise ValueError(
+                "Memory retrieval result result_count cannot exceed result_limit."
+            )
+        if self.max_context_chars < 80 or self.max_context_chars > 4000:
+            raise ValueError(
+                "Memory retrieval result max_context_chars must be between 80 and 4000."
+            )
+        if self.outcome == MemoryRetrievalOutcome.MATCHED:
+            if self.reason_code != "retrieval_matched":
+                raise ValueError(
+                    "Matched memory retrieval result must use retrieval_matched."
+                )
+            if not self.matches:
+                raise ValueError(
+                    "Matched memory retrieval result must include at least one match."
+                )
+        elif self.outcome == MemoryRetrievalOutcome.NO_MATCH:
+            if self.reason_code != "retrieval_no_match":
+                raise ValueError(
+                    "No-match memory retrieval result must use retrieval_no_match."
+                )
+            if self.matches or self.result_count:
+                raise ValueError(
+                    "No-match memory retrieval results cannot include matches."
+                )
+        elif self.matches or self.result_count:
+            raise ValueError(
+                "Denied memory retrieval results cannot include matches."
+            )
+
+    @property
+    def memory_ids(self) -> tuple[str, ...]:
+        return tuple(match.item.id for match in self.matches)
+
+
 class MemoryRetrievalService:
     def __init__(
         self,
@@ -146,13 +254,17 @@ class MemoryRetrievalService:
     def evaluate(self, query: MemoryQuery) -> MemoryRetrievalDecision:
         return self.policy.evaluate(query)
 
-    def search(self, query: MemoryQuery) -> list[MemorySearchResult]:
+    def retrieve(self, query: MemoryQuery) -> MemoryRetrievalResult:
         decision = self.evaluate(query)
         if not decision.allowed:
-            return []
+            return self._result(
+                query=query,
+                outcome=MemoryRetrievalOutcome.DENIED,
+                reason_code=decision.reason_code,
+                matches=(),
+            )
 
         candidates = self.store.list()
-
         candidates = [item for item in candidates if item.scope in query.scopes]
         candidates = [item for item in candidates if item.type in query.types]
 
@@ -165,7 +277,44 @@ class MemoryRetrievalService:
                 results.append(result)
 
         results.sort(key=lambda result: (-result.score, result.item.id))
-        return results[: query.limit]
+        matches = tuple(results[: query.limit])
+
+        if not matches:
+            return self._result(
+                query=query,
+                outcome=MemoryRetrievalOutcome.NO_MATCH,
+                reason_code="retrieval_no_match",
+                matches=(),
+            )
+
+        return self._result(
+            query=query,
+            outcome=MemoryRetrievalOutcome.MATCHED,
+            reason_code="retrieval_matched",
+            matches=matches,
+        )
+
+    def _result(
+        self,
+        *,
+        query: MemoryQuery,
+        outcome: MemoryRetrievalOutcome,
+        reason_code: str,
+        matches: tuple[MemorySearchResult, ...],
+    ) -> MemoryRetrievalResult:
+        return MemoryRetrievalResult(
+            request_id=query.request_id,
+            source=query.source,
+            purpose=query.purpose,
+            outcome=outcome,
+            reason_code=reason_code,
+            applied_scopes=query.scopes,
+            applied_types=query.types,
+            matches=matches,
+            result_count=len(matches),
+            result_limit=query.limit,
+            max_context_chars=query.max_context_chars,
+        )
 
     def _score_item(
         self,

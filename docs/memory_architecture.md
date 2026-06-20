@@ -22,8 +22,10 @@ Implemented:
 - Memory operation result
 - Memory audit event model
 - In-memory memory audit sink
-- Memory retrieval contract
-- Memory context builder
+- Explicit memory commands and pending confirmation flows
+- Candidate-selection audit lifecycle
+- Policy-gated deterministic memory retrieval
+- Immutable retrieval result and context contracts
 - Policy-gated memory writes
 - Policy-gated memory updates and corrections
 - Policy-gated memory deletes
@@ -35,9 +37,9 @@ Not implemented yet:
 - API integration
 - HUD integration
 - Provider prompt-context injection
+- Retrieval audit
 - Automatic memory extraction from normal chat
 - Global audit-log integration
-- User-facing memory management commands
 - Semantic or vector memory retrieval
 
 ## Modules
@@ -162,12 +164,21 @@ This is not yet connected to the global LuciferOS audit system.
 Defines:
 
 - MemoryQuery
+- MemoryRetrievalDecision
+- MemoryRetrievalOutcome
+- MemoryRetrievalResult
 - MemorySearchResult
 - MemoryRetrievalService
 
-Retrieval is explicit, filtered and limited. It supports filtering by text, type, scope and limit.
+`MemoryQuery` is the explicit, bounded request contract. It requires a caller-supplied request id, query text, scopes, types, purpose, source, result limit and total context character budget.
 
-Memory retrieval must not dump all memories into provider prompts.
+`MemoryRetrievalService.retrieve(query)` evaluates policy before any store read and returns one immutable `MemoryRetrievalResult` with an explicit outcome:
+
+- denied
+- no_match
+- matched
+
+The result preserves the request identity and applied filters, includes only immutable minimal snapshots when matched, retains deterministic score/id ordering, and never contains raw query text or mutable memory records.
 
 ### context.py
 
@@ -176,9 +187,11 @@ Defines:
 - MemoryContext
 - MemoryContextBuilder
 
-MemoryContextBuilder converts selected retrieval results into a short, bounded text context suitable for future provider use.
+`MemoryContextBuilder` projects a matched `MemoryRetrievalResult` into a short deterministic text context suitable for a later provider boundary.
 
-It includes only type, scope and memory content. It intentionally avoids raw metadata and audit details.
+The builder uses `MemoryRetrievalResult.max_context_chars` as the only total character budget. It does not own a competing total-budget or result-count policy. It includes only type, scope and memory content and intentionally avoids raw metadata and audit details.
+
+`MemoryContext.truncated` reports whether an already allowed and ranked match could not fit into the retrieval result's total context budget.
 
 ## Persistence Status
 
@@ -204,15 +217,16 @@ Persistence is still not connected to Core, API, HUD, providers, voice or tools.
 - Memory updates and corrections must pass through policy.
 - Memory deletes must pass through policy.
 - Memory operations must create audit events.
+- Retrieval policy must evaluate before store access.
 - Automatic memory from normal chat is not allowed at this stage.
 
 ## Future Integration Order
 
 Planned safe order:
 
-1. User-facing memory commands.
-2. Confirmation flow for memory writes, updates and deletes.
-3. Core-level memory retrieval hook.
+1. Retrieval audit and complete memory read-path regression.
+2. Core audit hardening before memory-related Core state is introduced.
+3. Core-level memory retrieval hook without provider injection.
 4. Controlled provider-context injection.
 5. API/HUD memory visibility.
 6. Global audit integration.
@@ -227,6 +241,9 @@ LuciferOS memory should make the assistant more useful over time, but never at t
 
 
 ## Historical test-protected wording
+
+Earlier milestone documentation also listed User-facing memory management commands as not implemented. Explicit memory commands now exist, but this phrase is intentionally preserved because earlier documentation tests protect the architecture history.
+
 
 Earlier milestone documentation listed Persistent database storage as not implemented.
 

@@ -3,6 +3,7 @@ import pytest
 from lucifer_os.memory import (
     InMemoryMemoryStore,
     MemoryQuery,
+    MemoryRetrievalOutcome,
     MemoryRetrievalPurpose,
     MemoryRetrievalService,
     MemoryScope,
@@ -31,6 +32,7 @@ def query(
     limit: int = 5,
 ) -> MemoryQuery:
     return MemoryQuery(
+        request_id=f"test-milestone-88-{text}",
         text=text,
         scopes=scopes,
         types=types,
@@ -78,47 +80,54 @@ def test_memory_query_rejects_invalid_limits():
 def test_memory_retrieval_filters_by_text():
     retrieval = MemoryRetrievalService(build_store_with_memories())
 
-    results = retrieval.search(query("Ollama local"))
+    result = retrieval.retrieve(query("Ollama local"))
 
-    assert len(results) == 1
-    assert results[0].item.content == "LuciferOS uses local Ollama for local AI mode."
-    assert results[0].score == 1.0
-    assert results[0].matched_terms == ("ollama", "local")
+    assert result.outcome == MemoryRetrievalOutcome.MATCHED
+    assert result.result_count == 1
+    assert result.matches[0].item.content == "LuciferOS uses local Ollama for local AI mode."
+    assert result.matches[0].score == 1.0
+    assert result.matches[0].matched_terms == ("ollama", "local")
 
 
 def test_memory_retrieval_filters_by_scope():
     retrieval = MemoryRetrievalService(build_store_with_memories())
 
-    results = retrieval.search(
+    result = retrieval.retrieve(
         query("fixture", scopes=(MemoryScope.PROJECT,))
     )
 
-    assert len(results) == 1
-    assert results[0].item.scope == MemoryScope.PROJECT
+    assert result.outcome == MemoryRetrievalOutcome.MATCHED
+    assert result.result_count == 1
+    assert result.matches[0].item.scope == MemoryScope.PROJECT
 
 
 def test_memory_retrieval_filters_by_type():
     retrieval = MemoryRetrievalService(build_store_with_memories())
 
-    results = retrieval.search(
+    result = retrieval.retrieve(
         query("fixture", types=(MemoryType.PREFERENCE,))
     )
 
-    assert len(results) == 1
-    assert results[0].item.type == MemoryType.PREFERENCE
+    assert result.outcome == MemoryRetrievalOutcome.MATCHED
+    assert result.result_count == 1
+    assert result.matches[0].item.type == MemoryType.PREFERENCE
 
 
 def test_memory_retrieval_respects_limit():
     retrieval = MemoryRetrievalService(build_store_with_memories())
 
-    results = retrieval.search(query("fixture", limit=2))
+    result = retrieval.retrieve(query("fixture", limit=2))
 
-    assert len(results) == 2
+    assert result.outcome == MemoryRetrievalOutcome.MATCHED
+    assert result.result_count == 2
+    assert len(result.matches) == 2
 
 
-def test_memory_retrieval_returns_empty_when_no_terms_match():
+def test_memory_retrieval_returns_no_match_when_no_terms_match():
     retrieval = MemoryRetrievalService(build_store_with_memories())
 
-    results = retrieval.search(query("nonexistent"))
+    result = retrieval.retrieve(query("nonexistent"))
 
-    assert results == []
+    assert result.outcome == MemoryRetrievalOutcome.NO_MATCH
+    assert result.reason_code == "retrieval_no_match"
+    assert result.matches == ()
