@@ -13,6 +13,12 @@ from lucifer_os.memory.pending import (
 )
 from lucifer_os.memory.resolution_plan import MemoryResolutionPlanAction, MemoryResolutionPlanner
 from lucifer_os.memory.resolver import MemoryTargetCandidate, MemoryTargetResolver
+from lucifer_os.memory.selection_audit import (
+    InMemoryMemoryCandidateSelectionAuditSink,
+    MemoryCandidateSelectionAuditAction,
+    MemoryCandidateSelectionAuditDeliveryService,
+    MemoryCandidateSelectionAuditEvent,
+)
 from lucifer_os.memory.selection import (
     MemoryCandidateSelectionOutcome,
     MemoryCandidateSelectionPendingActionBuilder,
@@ -58,6 +64,7 @@ class MemoryCommandExecutor:
         selection_service: MemoryCandidateSelectionRequestService | None = None,
         candidate_selector: MemoryCandidateSelector | None = None,
         selection_pending_action_builder: MemoryCandidateSelectionPendingActionBuilder | None = None,
+        selection_audit_delivery_service: MemoryCandidateSelectionAuditDeliveryService | None = None,
     ) -> None:
         if max_results <= 0:
             raise ValueError("max_results must be greater than zero.")
@@ -73,6 +80,12 @@ class MemoryCommandExecutor:
         self.selection_pending_action_builder = (
             selection_pending_action_builder
             or MemoryCandidateSelectionPendingActionBuilder()
+        )
+        self.selection_audit_delivery_service = (
+            selection_audit_delivery_service
+            or MemoryCandidateSelectionAuditDeliveryService(
+                InMemoryMemoryCandidateSelectionAuditSink()
+            )
         )
 
     def execute(self, command: MemoryCommand) -> MemoryCommandExecutionResult:
@@ -329,6 +342,22 @@ class MemoryCommandExecutor:
                 else None
             ),
         )
+        event = MemoryCandidateSelectionAuditEvent(
+            action=MemoryCandidateSelectionAuditAction.REQUEST_CREATED,
+            source="memory-command-executor",
+            selection_request_id=request.id,
+            command_type=request.command_type,
+            reason="ambiguous_target",
+        )
+        delivery = self.selection_audit_delivery_service.deliver(event)
+        if delivery.failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=delivery.reason,
+                command=command,
+                memories=tuple(candidate.memory for candidate in candidates),
+            )
+
         self.selection_service.set_request(request)
 
         return MemoryCommandExecutionResult(
