@@ -27,6 +27,7 @@ class MemoryCommandExecutionStatus(str, Enum):
     EXECUTED = "executed"
     PENDING_CONFIRMATION = "pending_confirmation"
     AWAITING_USER_SELECTION = "awaiting_user_selection"
+    CANCELLED_USER_SELECTION = "cancelled_user_selection"
     CONFIRMED_PENDING = "confirmed_pending"
     CANCELLED_PENDING = "cancelled_pending"
     REJECTED = "rejected"
@@ -292,11 +293,30 @@ class MemoryCommandExecutor:
         command: MemoryCommand,
         candidates: tuple[MemoryTargetCandidate, ...],
     ) -> MemoryCommandExecutionResult:
+        active_lifecycle = self.selection_service.get_request_lifecycle_result()
+        if active_lifecycle.request is not None and not active_lifecycle.stale:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=(
+                    "An active memory candidate selection request must be cancelled "
+                    "or completed before a new selection request is created."
+                ),
+                command=command,
+                memories=tuple(
+                    candidate.memory for candidate in active_lifecycle.request.candidates
+                ),
+                selection_request=active_lifecycle.request,
+            )
+
         request = MemoryCandidateSelectionRequest(
             command_type=command.type,
             source_text=command.raw_text,
             candidates=candidates,
-            proposed_content=command.content if command.type == MemoryCommandType.CORRECT else None,
+            proposed_content=(
+                command.content
+                if command.type == MemoryCommandType.CORRECT
+                else None
+            ),
         )
         self.selection_service.set_request(request)
 
@@ -313,7 +333,15 @@ class MemoryCommandExecutor:
         request_id: str,
         memory_id: str,
     ) -> MemoryCommandExecutionResult:
-        request = self.selection_service.get_request()
+        lifecycle = self.selection_service.get_request_lifecycle_result()
+        if lifecycle.stale:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=lifecycle.reason,
+                command=self._selection_command(lifecycle.request),
+            )
+
+        request = lifecycle.request
         if request is None:
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
@@ -356,6 +384,31 @@ class MemoryCommandExecutor:
             message="Selected memory target requires confirmation.",
             command=self._selection_command(request),
             pending_action=preparation.pending_action,
+        )
+
+    def cancel_memory_candidate_selection(self) -> MemoryCommandExecutionResult:
+        lifecycle = self.selection_service.get_request_lifecycle_result()
+        if lifecycle.stale:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=lifecycle.reason,
+                command=self._selection_command(lifecycle.request),
+            )
+
+        request = lifecycle.request
+        if request is None:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message="No active memory candidate selection request to cancel.",
+                command=self._selection_command(None),
+            )
+
+        result = self.selection_service.cancel_request()
+        return MemoryCommandExecutionResult(
+            status=MemoryCommandExecutionStatus.CANCELLED_USER_SELECTION,
+            message=result.reason,
+            command=self._selection_command(request),
+            selection_request=result.request,
         )
 
     @staticmethod

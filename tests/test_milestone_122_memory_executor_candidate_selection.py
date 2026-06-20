@@ -155,7 +155,7 @@ def test_selection_cannot_create_two_pending_actions():
     assert selection_service.get_request() is None
 
 
-def test_new_selection_request_replaces_previous_active_request():
+def test_new_selection_request_does_not_silently_replace_previous_active_request():
     executor, service, selection_service = make_executor()
     add_memory(service, "LuciferOS bruker SQLite for memory")
     add_memory(service, "LuciferOS bruker SQLite for audit")
@@ -168,9 +168,10 @@ def test_new_selection_request_replaces_previous_active_request():
     )
 
     assert first_waiting.selection_request is not None
-    assert second_waiting.selection_request is not None
-    assert first_waiting.selection_request.id != second_waiting.selection_request.id
-    assert selection_service.get_request() == second_waiting.selection_request
+    assert second_waiting.status == MemoryCommandExecutionStatus.REJECTED
+    assert second_waiting.selection_request == first_waiting.selection_request
+    assert selection_service.get_request() == first_waiting.selection_request
+    assert executor.pending_service.get_pending() is None
 
 
 def test_selection_service_types_are_public_memory_exports():
