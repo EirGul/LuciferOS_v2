@@ -14,6 +14,73 @@ class MemoryRetrievalPurpose(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class MemoryRetrievalDecision:
+    allowed: bool
+    reason_code: str
+
+
+class MemoryRetrievalPolicy:
+    """Conservative read-policy for deterministic memory retrieval.
+
+    This policy is intentionally independent from write/update/delete policy.
+    It does not perform retrieval and does not mutate memory.
+    """
+
+    _BLOCKED_TYPES = frozenset({
+        MemoryType.COMMAND_ALIAS,
+        MemoryType.RELATIONSHIP,
+        MemoryType.USER_INSTRUCTION,
+    })
+
+    _BLOCKED_SCOPES = frozenset({
+        MemoryScope.INTERFACE_SPECIFIC,
+        MemoryScope.TOOL_SPECIFIC,
+    })
+
+    _CONVERSATION_ALLOWED_SCOPES = frozenset({
+        MemoryScope.PROJECT,
+        MemoryScope.SESSION,
+    })
+
+    _PROJECT_ASSISTANCE_ALLOWED_SCOPES = frozenset({
+        MemoryScope.PROJECT,
+        MemoryScope.SESSION,
+    })
+
+    def evaluate(self, query: "MemoryQuery") -> MemoryRetrievalDecision:
+        if any(memory_type in self._BLOCKED_TYPES for memory_type in query.types):
+            return MemoryRetrievalDecision(
+                allowed=False,
+                reason_code="retrieval_type_not_allowed",
+            )
+
+        if any(scope in self._BLOCKED_SCOPES for scope in query.scopes):
+            return MemoryRetrievalDecision(
+                allowed=False,
+                reason_code="retrieval_scope_not_allowed",
+            )
+
+        if query.purpose == MemoryRetrievalPurpose.CONVERSATION_RESPONSE:
+            if not set(query.scopes).issubset(self._CONVERSATION_ALLOWED_SCOPES):
+                return MemoryRetrievalDecision(
+                    allowed=False,
+                    reason_code="conversation_scope_not_allowed",
+                )
+
+        if query.purpose == MemoryRetrievalPurpose.PROJECT_ASSISTANCE:
+            if not set(query.scopes).issubset(self._PROJECT_ASSISTANCE_ALLOWED_SCOPES):
+                return MemoryRetrievalDecision(
+                    allowed=False,
+                    reason_code="project_assistance_scope_not_allowed",
+                )
+
+        return MemoryRetrievalDecision(
+            allowed=True,
+            reason_code="retrieval_allowed",
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class MemoryQuery:
     text: str
     scopes: tuple[MemoryScope, ...]
@@ -68,10 +135,22 @@ class MemorySearchResult:
 
 
 class MemoryRetrievalService:
-    def __init__(self, store: MemoryStore) -> None:
+    def __init__(
+        self,
+        store: MemoryStore,
+        policy: MemoryRetrievalPolicy | None = None,
+    ) -> None:
         self.store = store
+        self.policy = policy or MemoryRetrievalPolicy()
+
+    def evaluate(self, query: MemoryQuery) -> MemoryRetrievalDecision:
+        return self.policy.evaluate(query)
 
     def search(self, query: MemoryQuery) -> list[MemorySearchResult]:
+        decision = self.evaluate(query)
+        if not decision.allowed:
+            return []
+
         candidates = self.store.list()
 
         candidates = [item for item in candidates if item.scope in query.scopes]
@@ -85,7 +164,7 @@ class MemoryRetrievalService:
             if result is not None:
                 results.append(result)
 
-        results.sort(key=lambda result: result.score, reverse=True)
+        results.sort(key=lambda result: (-result.score, result.item.id))
         return results[: query.limit]
 
     def _score_item(
