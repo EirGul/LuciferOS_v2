@@ -9,6 +9,12 @@ from uuid import uuid4
 from lucifer_os.memory.commands import MemoryCommandType
 from lucifer_os.memory.pending import PendingMemoryAction, PendingMemoryActionType
 from lucifer_os.memory.resolver import MemoryTargetCandidate
+from lucifer_os.memory.selection_audit import (
+    InMemoryMemoryCandidateSelectionAuditSink,
+    MemoryCandidateSelectionAuditAction,
+    MemoryCandidateSelectionAuditDeliveryService,
+    MemoryCandidateSelectionAuditEvent,
+)
 
 
 def utc_now_iso() -> str:
@@ -102,6 +108,13 @@ class MemoryCandidateSelectionRequestLifecycleResult:
     stale: bool
     request: MemoryCandidateSelectionRequest | None = None
     reason: str = ""
+    audit_delivery_failed: bool = False
+
+    def __post_init__(self) -> None:
+        if self.audit_delivery_failed and not self.reason.strip():
+            raise ValueError(
+                "Blocked memory candidate selection lifecycle result requires a reason."
+            )
 
 
 class MemoryCandidateSelectionRequestStore(ABC):
@@ -136,15 +149,25 @@ class InMemoryMemoryCandidateSelectionRequestStore(MemoryCandidateSelectionReque
 
 
 class MemoryCandidateSelectionRequestService:
+    AUDIT_SOURCE = "memory-candidate-selection-request-service"
+    EXPIRY_REASON = "selection_request_stale"
+
     def __init__(
         self,
         store: MemoryCandidateSelectionRequestStore | None = None,
         stale_after_seconds: int = 300,
+        audit_delivery_service: MemoryCandidateSelectionAuditDeliveryService | None = None,
     ) -> None:
         if stale_after_seconds <= 0:
             raise ValueError("stale_after_seconds must be greater than zero.")
         self.store = store or InMemoryMemoryCandidateSelectionRequestStore()
         self.stale_after_seconds = stale_after_seconds
+        self.audit_delivery_service = (
+            audit_delivery_service
+            or MemoryCandidateSelectionAuditDeliveryService(
+                InMemoryMemoryCandidateSelectionAuditSink()
+            )
+        )
 
     def set_request(
         self,
@@ -154,7 +177,7 @@ class MemoryCandidateSelectionRequestService:
 
     def get_request(self) -> MemoryCandidateSelectionRequest | None:
         result = self.get_request_lifecycle_result()
-        if result.stale:
+        if result.stale or result.audit_delivery_failed:
             return None
         return result.request
 
@@ -169,6 +192,23 @@ class MemoryCandidateSelectionRequestService:
             )
 
         if self.is_stale(request):
+            event = MemoryCandidateSelectionAuditEvent(
+                action=MemoryCandidateSelectionAuditAction.REQUEST_EXPIRED,
+                source=self.AUDIT_SOURCE,
+                selection_request_id=request.id,
+                command_type=request.command_type,
+                reason=self.EXPIRY_REASON,
+            )
+            delivery = self.audit_delivery_service.deliver(event)
+            if delivery.failed:
+                return MemoryCandidateSelectionRequestLifecycleResult(
+                    cancelled=False,
+                    stale=False,
+                    request=request,
+                    reason=delivery.reason,
+                    audit_delivery_failed=True,
+                )
+
             self.store.clear()
             return MemoryCandidateSelectionRequestLifecycleResult(
                 cancelled=False,

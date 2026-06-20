@@ -294,6 +294,17 @@ class MemoryCommandExecutor:
         candidates: tuple[MemoryTargetCandidate, ...],
     ) -> MemoryCommandExecutionResult:
         active_lifecycle = self.selection_service.get_request_lifecycle_result()
+        if active_lifecycle.audit_delivery_failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=active_lifecycle.reason,
+                command=command,
+                memories=tuple(
+                    candidate.memory for candidate in active_lifecycle.request.candidates
+                ) if active_lifecycle.request is not None else (),
+                selection_request=active_lifecycle.request,
+            )
+
         if active_lifecycle.request is not None and not active_lifecycle.stale:
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
@@ -334,6 +345,14 @@ class MemoryCommandExecutor:
         memory_id: str,
     ) -> MemoryCommandExecutionResult:
         lifecycle = self.selection_service.get_request_lifecycle_result()
+        if lifecycle.audit_delivery_failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=lifecycle.reason,
+                command=self._selection_command(lifecycle.request),
+                selection_request=lifecycle.request,
+            )
+
         if lifecycle.stale:
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
@@ -388,6 +407,14 @@ class MemoryCommandExecutor:
 
     def cancel_memory_candidate_selection(self) -> MemoryCommandExecutionResult:
         lifecycle = self.selection_service.get_request_lifecycle_result()
+        if lifecycle.audit_delivery_failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=lifecycle.reason,
+                command=self._selection_command(lifecycle.request),
+                selection_request=lifecycle.request,
+            )
+
         if lifecycle.stale:
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
