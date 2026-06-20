@@ -15,6 +15,16 @@ Principles:
 Current milestone:
 - Milestone 1: clean repo and package skeleton
 
+## Development environment
+
+The bootstrap environment is verified with CPython 3.13.13.
+
+```powershell
+uv sync --group dev
+uv run pytest -q
+uv run ruff check .
+```
+
 ## Project documentation
 
 - [LuciferOS Manifest](docs/luciferos_manifest.md)
