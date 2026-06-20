@@ -1,334 +1,555 @@
-# LuciferOS Manifest v2
+# LuciferOS Manifest v3
 
-## Status
+## Status and authority
 
-Architectural contract for LuciferOS after Milestone 91.
+This is the current architectural contract for LuciferOS after Milestone 140.
 
 - Project path: `C:\Users\Eirik Gulbrandsen\developer\luciferos_v2`
 - Repository: `https://github.com/EirGul/LuciferOS_v2.git`
 - Branch: `main`
-- Last known milestone: 1–91 complete
-- Last known tests: 230 passed
-- Last known git state: clean and pushed
+- Completed milestones: 1–140
+- Verified test suite: 593 passed
+- Last known git state: clean and pushed to `origin/main`
+- Preferred repository location: `docs/luciferos_manifest.md`
 
-Preferred repo location:
+This document is authoritative when project shortcuts, tests, legacy code or convenience conflict with the intended architecture.
 
-    docs/luciferos_manifest.md
+It must be updated and committed whenever a material architectural decision changes.
 
-This manifest should be committed and pushed whenever it changes materially.
+---
 
-## Purpose
+## Mission
 
-LuciferOS is a local-first, modular AI agent platform. It is designed to become a fast, safe, extensible personal assistant that can operate through HUD, voice, CLI, API and eventually a tablet dashboard.
+LuciferOS is a local-first, modular AI agent platform. It must become a fast, safe, extensible conversational assistant that can operate through CLI, API, HUD, voice and eventually a tablet dashboard.
 
-LuciferOS must not become a fragile command script, a thin wrapper around one provider, or a UI-driven system where HUD owns routing, tools, memory, provider choice or permissions.
+The long-term platform includes:
 
-LuciferOS must have its own Core, runtime model, provider abstraction, permission layer, audit trail, memory/learning subsystem and modular tool architecture.
+- local and optional cloud-capable reasoning providers
+- voice interaction and replaceable HUD/tablet interfaces
+- explicit memory and learning
+- permissions, confirmation gates and audit trails
+- modular tools for PC control, files, browser, email, calendar, Office, smart home, camera/admin and connected devices
 
-## Core Principles
+LuciferOS must not become:
 
-- Core must be small, deterministic, testable and interface-independent.
-- Conversation is the default interaction model.
-- Commands are explicit special cases.
-- Aggressive fuzzy command matching must not hijack normal conversation.
-- Voice, HUD, CLI and API are replaceable interfaces.
-- Providers are replaceable backends, not the identity of LuciferOS.
-- Offline mode must remain available as the safe default.
-- Ollama and other providers must be explicit runtime/provider choices.
-- Tools and platform actions must be modular and permission-gated.
-- HUD must not own routing, provider selection, permissions, tools, memory or OS actions.
-- All meaningful state-changing actions must be auditable.
-- The user must remain in control of memory, tools and external actions.
+- a fragile command script
+- a thin wrapper around a single provider
+- a HUD-owned application
+- an uncontrolled logger or prompt-memory dump
+- a collection of ad hoc patches without clear boundaries
 
-## Runtime Architecture
+---
 
-Intended flow:
+## Non-negotiable architecture principles
 
-    Interface
-    -> API/runtime adapter
-    -> LuciferApp
-    -> Core
-    -> Router / Planner / Permission policy
-    -> Provider or Tool adapter
-    -> Response builder
-    -> Interface rendering
+Core must be small, deterministic, testable and interface-independent.
+
+1. **Core is small, deterministic, testable and interface-independent.**
+2. **Conversation is the default.** Commands are explicit special cases and must not hijack ordinary language through aggressive fuzzy matching.
+3. **Interfaces are replaceable shells.** HUD, voice, CLI and API may collect input and render output, but do not own routing, providers, tools, memory, permissions or OS actions.
+4. **Providers are backends, not LuciferOS identity.** Offline mode remains a safe default. Ollama and future cloud providers are explicit, replaceable choices.
+5. **State-changing actions require policy, confirmation where appropriate and audit.**
+6. **Memory is explicit, bounded, policy-aware, auditable, correctable and deletable.**
+7. **No direct interface-to-tool or interface-to-memory writes.**
+8. **No direct Core access to SQLite or store internals.**
+9. **No provider may autonomously retrieve, mutate or broadly inspect memory.**
+10. **Prefer clean refactors early over accumulating patches on a faulty foundation.**
+
+---
+
+## Intended runtime architecture
+
+```text
+Interface
+→ API/runtime adapter
+→ LuciferApp
+→ Core
+→ Router / Planner / Permission policy
+→ Provider or Tool adapter
+→ Response builder
+→ Interface rendering
+```
+
+Runtime logic belongs behind application/service boundaries, never inside HUD code or one-off scripts.
 
 Current verified local Ollama chain:
 
-    HUD
-    -> FastAPI
-    -> ApiService
-    -> LuciferApp
-    -> Core
-    -> OllamaProvider
-    -> local Ollama model
-
-Runtime logic belongs behind application/service boundaries, not inside HUD or scripts.
-
-## Provider Strategy
-
-- Default provider must remain `offline` unless explicitly overridden.
-- Local Ollama mode is valid and available through explicit startup/runtime selection.
-- Cloud providers may be added later, but must remain optional and permission-aware.
-- Provider choice must stay outside HUD logic.
-- Provider status may be displayed in HUD, but HUD must only display status returned from API/runtime.
-- Provider fallback must be safe and observable.
-
-Current verified modes:
-
-    Safe/offline: start_lucifer_api.bat
-    Local AI/Ollama: start_lucifer_api_ollama.bat
+```text
+HUD
+→ FastAPI
+→ ApiService
+→ LuciferApp
+→ Core
+→ OllamaProvider
+→ local Ollama model
+```
 
 Current local model:
 
-    eirik-qwen3:latest
+```text
+eirik-qwen3:latest
+```
 
-## Interface Strategy
+Documented runtime modes:
 
-Interfaces are replaceable shells around the Core/runtime.
+```text
+Safe/offline: start_lucifer_api.bat
+Local AI/Ollama: start_lucifer_api_ollama.bat
+```
 
-Current/planned interfaces:
+---
+
+## Interface and HUD rules
+
+Current and planned interfaces:
 
 - CLI
 - API
 - HUD
-- Voice
-- Future tablet dashboard
+- voice
+- future tablet dashboard
 
-Rules:
+Interfaces may:
 
-- Interfaces may collect user input and display state.
-- Interfaces may show confirmation prompts later.
-- Interfaces must not own provider routing.
-- Interfaces must not bypass permissions.
-- Interfaces must not call tools directly.
-- Interfaces must not write memory directly.
-- Interfaces must not execute OS actions directly.
+- collect user input
+- render response/state
+- show later confirmation prompts
+- display runtime/provider status returned from API/runtime
 
-## HUD Strategy
+Interfaces must not:
 
-HUD is a visual control and feedback surface.
+- route intents
+- select providers
+- call tools directly
+- write memory directly
+- bypass permission policy
+- execute OS actions
+- own long-term state
 
-HUD may display API status, provider status, adapter status, face state, chat output and future system panels.
+HUD state contract:
 
-HUD must not directly route intents, select providers, write memory, execute tools, perform OS actions, bypass permissions or own long-term state.
+```text
+online: blue
+offline: grey-blue
+thinking: yellow
+speaking: purple
+chat/active dialog: green
+error/angry: red
+```
 
-Current visual state contract:
+HUD is presentation-only.
 
-    online: blue
-    offline: grey-blue
-    thinking: yellow
-    speaking: purple
-    chat/active dialog: green
-    error/angry: red
+---
+
+## Provider strategy
+
+- Default provider remains `offline` unless explicitly overridden.
+- Local Ollama mode is valid through explicit runtime selection.
+- Cloud providers may be optional later, but remain permission-aware and non-foundational.
+- Provider selection stays outside HUD logic.
+- Provider fallback must be safe and observable.
+- Provider prompts must not receive raw memory records or unbounded database contents.
+
+---
 
 ## Memory & Learning Subsystem
 
-Memory and learning are first-class LuciferOS subsystems.
+### Memory subsystem: core rules
 
-Memory must not be uncontrolled prompt text, random JSON dumping, or automatic storage of everything the user says. Memory must be explicit, bounded, auditable, permission-aware, deletable, correctable and separated by scope.
+Memory is a first-class LuciferOS subsystem.
 
-Current implemented memory modules:
+Memory must not be:
 
-    lucifer_os/memory/models.py
-    lucifer_os/memory/store.py
-    lucifer_os/memory/service.py
-    lucifer_os/memory/learning.py
-    lucifer_os/memory/policy.py
-    lucifer_os/memory/audit.py
-    lucifer_os/memory/retrieval.py
-    lucifer_os/memory/context.py
+- uncontrolled prompt text
+- random JSON dumping
+- automatic storage of everything the user says
+- a hidden profile builder
+- a way for an interface or provider to bypass permissions
 
-Current implemented concepts:
+Memory must be:
 
-- MemoryItem
-- MemoryType
-- MemoryScope
-- MemoryStore / InMemoryMemoryStore
-- MemoryService / MemoryOperationResult
-- LearningService
-- MemoryPolicy / MemoryDecision
-- MemoryWriteRequest / MemoryDeleteRequest
-- MemoryAuditEvent / MemoryAuditAction
-- MemoryAuditSink / InMemoryMemoryAuditSink
-- MemoryQuery / MemorySearchResult / MemoryRetrievalService
-- MemoryContext / MemoryContextBuilder
+- explicit
+- bounded
+- scope-separated
+- policy-aware
+- auditable
+- correctable and deletable
+- separate from normal conversation unless a defined retrieval path authorizes use
 
 Required memory types:
 
-- fact
-- preference
-- project_state
-- correction
-- command_alias
-- relationship
-- task_context
-- user_instruction
+```text
+fact
+preference
+project_state
+correction
+command_alias
+relationship
+task_context
+user_instruction
+```
 
 Required scopes:
 
-- global
-- project
-- session
-- interface-specific
-- tool-specific
+```text
+global
+project
+session
+interface-specific
+tool-specific
+```
 
-Learning rules:
+Write rules:
 
-- LuciferOS must not store everything the user says.
-- Explicit phrases like `husk at ...` and `lær at ...` may create learning requests.
-- High-impact memory must require confirmation.
-- Deletes must require confirmation.
-- The user must be able to ask what Lucifer remembers.
-- The user must be able to delete or correct memories.
-- Memory writes and deletes must be audit-logged.
-- Retrieval must be relevant and bounded.
+- Explicit phrases such as `husk at ...` and `lær at ...` may create learning requests.
+- Normal conversation is not automatically stored.
+- High-impact memory requires confirmation.
+- Deletes require confirmation.
+- The user can inspect, correct and delete memory.
+- Write/delete operations are audit-logged.
+
+Read rules:
+
+- Retrieval must be explicit, relevant, deterministic and bounded.
 - Memory must never be dumped wholesale into provider prompts.
-- Project memory must be separated from global personal memory.
+- Project memory must remain separated from global personal memory.
+- A conversational retrieval must never create a pending action or mutate memory.
+- Core must request retrieval through a narrow service boundary, never through direct store or SQLite access.
 
-Current memory state after Milestone 91:
+---
 
-- Memory subsystem exists.
-- Policy gate exists.
-- Audit events exist.
-- Retrieval contract exists.
-- Context builder exists.
-- Memory documentation exists.
-- Memory is not yet integrated into Core/API/HUD/provider prompts.
-- No persistent database backend exists yet.
-- No automatic memory extraction exists.
+## Memory implementation status after M140
 
-This separation is intentional.
+Memory package:
 
-## Memory Integration Order
+```text
+lucifer_os/memory/
+```
 
-Future order:
+Relevant modules:
 
-1. Persistent MemoryStore backend design.
-2. Persistent MemoryStore implementation.
-3. User-facing memory commands.
-4. Confirmation flow for writes/deletes.
-5. Core-level retrieval hook.
-6. Controlled provider-context injection.
-7. API/HUD memory visibility.
-8. Global audit integration.
-9. More advanced learning/correction workflow.
-10. Optional semantic/vector retrieval later.
+```text
+models.py
+store.py
+sqlite_store.py
+service.py
+policy.py
+audit.py
+commands.py
+resolver.py
+resolution_plan.py
+pending.py
+selection.py
+selection_audit.py
+executor.py
+retrieval.py
+context.py
+learning.py
+```
 
-Do not connect memory directly to provider prompts before retrieval, context limits, policy and audit behavior are stable.
+### Write, correction and selection status
 
-## Safety and Permissions
+Implemented and tested:
 
-- Read-only operations may be low friction.
-- Write operations must be permission-gated.
-- Destructive operations must require explicit confirmation.
-- OS, browser, email, document, smart-home and camera actions must go through tool adapters and permission policies.
-- Audit logs must record meaningful state-changing actions.
-- No interface may bypass permissions.
+- `MemoryItem`, `MemoryType`, `MemoryScope`
+- `MemoryStore`, `InMemoryMemoryStore`, `SQLiteMemoryStore`
+- `MemoryService`
+- write/update/delete policy and audit boundaries
+- explicit memory commands
+- correction/delete target resolution
+- pending confirmation flow
+- candidate selection for ambiguous correction/delete
+- complete selection audit lifecycle
 
-## Tool and Plugin Strategy
+Selection audit lifecycle is complete for the current phase:
 
-Future tools should support local files, browser, email, calendar, Office documents, Git/project work, Home Assistant/smart-home, camera/admin, printer/connected devices and local OS/app control.
+```text
+selection request created
+selection request rejected
+selection request expired
+selection candidate rejected
+selection candidate accepted
+selection pending action prepared
+selection request cancelled
+```
+
+Selection safety rules:
+
+```text
+audit delivery succeeds
+→ state transition may complete
+
+audit delivery fails
+→ state is preserved
+→ no pending action is created
+→ no memory item is changed
+```
+
+Selection audit events use minimal bounded identifiers/reason codes and must not contain raw user text, candidate content, proposed correction text or provider prompts.
+
+### Retrieval status
+
+Existing retrieval components were hardened in M139–M140:
+
+- `MemoryQuery` requires:
+  - non-empty text
+  - explicit scopes
+  - explicit types
+  - supported retrieval purpose
+  - non-empty source
+  - bounded result limit
+  - bounded total context budget
+- `MemoryRetrievalPurpose`:
+  - `conversation_response`
+  - `project_assistance`
+  - `explicit_memory_search`
+- `MemoryRetrievalPolicy` evaluates requests before `store.list()`.
+- Denied retrieval must not read the store.
+- `MemorySnapshot` is immutable and deliberately excludes mutable/sensitive fields such as metadata, tags and source.
+- `MemorySearchResult` contains snapshot, deterministic score and matched terms.
+- Ranking is deterministic: score descending, then memory id ascending.
+- `MemoryContextBuilder` supports a total character budget and reports truncation.
+- Core, runtime, API, HUD, voice, providers and prompts are still disconnected from retrieval.
+
+Current conservative read-policy:
+
+- Blocks retrieval of:
+  - `command_alias`
+  - `relationship`
+  - `user_instruction`
+- Blocks:
+  - `interface-specific`
+  - `tool-specific`
+- Blocks `global` scope for:
+  - `conversation_response`
+  - `project_assistance`
+- Allows `global` only for explicit memory search when all other filters are safe.
+
+This policy is intentionally conservative and not a final trusted-project/user-context authorization model.
+
+---
+
+## Retrieval read-path target
+
+The intended future read-path is:
+
+```text
+CoreRequest
+→ Core decides retrieval is relevant
+→ bounded MemoryQuery
+→ MemoryRetrievalPolicy
+→ deterministic MemoryRetrievalService
+→ explicit MemoryRetrievalResult
+→ retrieval audit
+→ Core-owned internal context state
+→ later dedicated provider-context builder
+→ provider input
+```
+
+Hard rules:
+
+- Core does not access SQLite or `MemoryStore` directly.
+- Retrieval policy executes before store access.
+- Providers never choose scope, type, limits or policy.
+- Providers never receive raw memory records.
+- A dedicated context builder, not the provider, owns formatting.
+- Retrieval audit must not log memory content, raw query text or provider context by default.
+- No automatic learning, vector retrieval, embeddings, semantic expansion or LLM relevance scoring in the first read-path implementation.
+
+---
+
+## Required retrieval implementation sequence
+
+The next retrieval work must proceed as larger, cohesive milestones rather than small patch chains.
+
+### Milestone 141 — Retrieval result and context contract migration
+
+Implement this as one coordinated memory-layer migration:
+
+```text
+MemoryQuery
+→ request id, explicit query/purpose/source/filter/budget fields
+
+MemoryRetrievalService.retrieve(query)
+→ MemoryRetrievalResult:
+   denied | no_match | matched
+   reason code
+   applied scopes/types
+   immutable bounded snapshots
+   stable ordering
+   result count
+   context-budget/truncation state
+
+MemoryContextBuilder.build(retrieval_result)
+→ deterministic formatting/projection
+→ uses retrieval result/query budget
+→ does not own a competing policy budget
+```
 
 Rules:
 
-- Tools must be registered.
-- Tools must declare risk.
-- Tools must be permission-gated.
-- Tools must audit meaningful changes.
-- Tools must be callable through Core/runtime, not directly from HUD.
-- Tools must be lazy-loaded where possible.
+- Do not introduce a parallel retrieval model beside existing `MemoryQuery`, `MemoryRetrievalService`, `MemorySearchResult` and `MemoryContextBuilder`.
+- Prefer a direct migration from `search()` to `retrieve()` over preserving a long-lived legacy public API.
+- `MemoryContextBuilder` becomes projection/formatting, not a separate policy authority.
+- No Core/provider/API/HUD/voice/runtime changes in M141.
+- No retrieval audit implementation in M141.
 
-## Smart-Home Goal
+### Milestone 142 — Retrieval audit and complete memory read-path regression
 
-Preferred model:
+Implement retrieval audit as one coherent behavior:
 
-    Tablet dashboard / HUD
-    -> LuciferOS API/Core
-    -> Tool adapters
-    -> Home Assistant or equivalent
-    -> physical smart-home devices
+```text
+retrieve(query)
+→ policy evaluation
+→ denied | no_match | matched
+→ bounded retrieval audit event
+→ return retrieval result
+```
 
-LuciferOS should reason and coordinate. Home Assistant or equivalent should control physical devices.
+Audit must include only bounded operational metadata:
 
-## PC-Control Goal
+- retrieval request id
+- source identifier
+- purpose
+- outcome
+- count returned
+- scopes/types applied
+- bounded reason code
 
-LuciferOS should eventually become a local PC-operating assistant: apps, browser, email, Office documents, local files, project workflows, camera/printer/connected devices later.
+Audit must not include:
 
-PC-control must use tools/adapters, permission gates and audit. It must not be patched into fuzzy command matching.
+- memory content
+- raw user query
+- provider prompt/context
+- hidden/inaccessible memory metadata
 
-## Voice Strategy
+Dependency composition must inject one explicit policy/audit setup. Do not allow disconnected defaults to make services audit to unrelated sinks.
 
-Voice is a future replaceable interface.
+### Milestone 143 — Core retrieval hook without provider injection
 
-- Voice must not own Core logic.
-- Voice should give short spoken responses.
-- Longer responses should go to visual/document channels.
-- Wake/sleep behavior should be explicit and testable.
-- Voice command matching must not override normal conversation.
+Only after M141–M142 are green and reviewed:
 
-## Remote Access / Development Infrastructure
+```text
+CoreRequest
+→ Core decides if retrieval is applicable
+→ bounded retrieval query
+→ result retained as Core-internal state
+→ normal response behavior remains unchanged
+```
 
-Remote access is useful for development and operation, but it is not part of LuciferOS Core.
+No provider prompt injection in M143.
+
+Before M143, harden Core audit behavior: `request_received` currently records raw request text and metadata in its trace. That must be minimized/redacted before retrieval or memory-related state can influence Core request handling.
+
+### Milestone 144 — Controlled provider-context injection
+
+Only after M143:
+
+```text
+no retrieval
+→ provider input unchanged
+
+denied retrieval
+→ no memory context
+
+no match
+→ no memory context
+
+matched retrieval
+→ bounded deterministic MemoryContext
+→ provider receives only this dedicated context product
+```
+
+---
+
+## Safety and permissions
+
+- Read-only operations may be low friction only after policy allows them.
+- Writes, destructive operations and external actions must be permission-gated.
+- Confirmation gates are mandatory where risk requires them.
+- OS, browser, email, document, smart-home, camera/admin and device actions go through tool adapters and permission policies.
+- Audit records meaningful state-changing actions and bounded operational events.
+- Interfaces never bypass permission or audit boundaries.
+
+---
+
+## Tool/plugin strategy
+
+Future tools may include:
+
+- local files
+- browser
+- email
+- calendar
+- Office documents
+- Git/project workflows
+- Home Assistant and smart home
+- camera/admin
+- printer/connected devices
+- local OS/app control
 
 Rules:
 
-- Do not expose RDP or development services directly to the public internet.
-- Preferred model: VPN first, then Remote Desktop or service access.
-- WireGuard or equivalent VPN is acceptable infrastructure.
-- Router/VPN infrastructure must remain outside LuciferOS Core.
-- LuciferOS must not depend on one specific VPN product.
-- Remote access is for development/operation, not Core runtime logic.
+- tools are registered
+- tools declare risk
+- tools are permission-gated
+- meaningful changes are audited
+- tools are called through Core/runtime
+- lazy loading is preferred
+- interfaces do not invoke tools directly
 
-## Development Discipline
+---
 
-- Small milestones.
-- One responsibility per milestone.
-- Tests before committing.
-- Commit and push only when tests pass.
-- Keep git clean between milestones.
-- Use Markdown documents for project artifacts by default.
-- Avoid fragile architecture shortcuts.
-- Prefer explicit, testable interfaces over hidden coupling.
-- Use Windows PowerShell carefully and verify syntax.
-- Avoid large risky PowerShell here-strings.
-- Prefer small file overwrites for testable modules.
-- Prefer safe line arrays with single-quoted strings for generated files.
-- Avoid Markdown triple backticks inside PowerShell double-quoted strings.
+## Engineering and workflow rules
 
-## Current Documentation Files
+- Use Windows PowerShell instructions only.
+- Keep steps short and verifiable.
+- Use small, testable milestones.
+- Start each milestone with explicit manifest alignment.
+- Run targeted tests first, then the full suite.
+- Commit only after full suite passes.
+- Keep the repository clean and pushed after each completed milestone.
+- Prefer Markdown files for project artifacts.
+- Avoid long PowerShell here-strings.
+- Avoid fragile exact-block replacement commands.
+- For complex edits, use a generated, syntax-checked Python patch script.
+- Patch scripts must be compiled before delivery.
+- Before delivering a patch, perform a pre-flight review:
+  - inspect affected contracts and existing tests
+  - check import/export changes
+  - check test assumptions against changed values
+  - validate syntax
+  - verify no competing service/policy/audit defaults are introduced
+- Prefer larger cohesive contract migrations over serial micro-patches when a lifecycle or read-path is already understood.
+- Do not use test count alone as proof of architectural progress.
+- Explicitly record deviations from the manifest and correct course early.
 
-    docs/luciferos_manifest.md
-    docs/runtime_modes.md
-    docs/memory_architecture.md
-    README.md
+---
 
-README should link to the docs above.
+## Chat continuity rule
 
-## Non-Negotiables
+The assistant must actively monitor chat length and context load.
 
-- Do not make HUD the Core.
-- Do not dump all memory into prompts.
-- Do not auto-store everything the user says.
-- Do not bypass policy for memory writes/deletes.
-- Do not expose remote desktop/dev services directly to the internet.
-- Do not make Ollama the invisible default.
-- Do not add PC-control without tool permissions and audit.
-- Do not confuse development tooling with LuciferOS runtime.
-- Do not build a brittle local prototype when the goal is a durable local platform.
+Before a technical milestone becomes unsafe to continue in the current chat:
 
-## Test-Protected Architecture Requirements
+1. stop before starting the larger change
+2. create an updated Markdown transfer summary
+3. include project state, test count, git state, last milestone, exact next step, architectural decisions and known risks
+4. instruct the user to start a new chat with the current manifest and transfer summary
 
-The following exact requirements are intentionally preserved because tests protect them:
+This rule exists to preserve technical precision and avoid degraded continuity.
 
-- Memory & Learning Subsystem
-- MemoryService
-- MemoryStore
-- LearningService
-- Permission checks
-- Audit logging
+---
+
+## Legacy manifest compatibility contract
+
+The following statements remain explicit compatibility requirements for the existing manifest regression tests and do not weaken the architecture defined above.
+
+- LearningService remains a future memory-learning boundary and must not auto-store ordinary conversation.
+- Permission checks are mandatory before state-changing or higher-risk actions.
+- Audit logging records bounded operational and state-changing events.
 - LuciferOS must not store everything the user says.
 - The user must be able to delete or correct memories.
-- Core must be small, deterministic, testable and interface-independent.
 - HUD must not own routing, provider selection, permissions, tools, memory or OS actions.
 - Default provider must remain offline unless explicitly overridden.
+
