@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -94,3 +95,25 @@ class MemoryCandidateSelectionAuditEvent:
     @property
     def is_memory_mutation_event(self) -> bool:
         return False
+
+
+class MemoryCandidateSelectionAuditSink(ABC):
+    @abstractmethod
+    def record(self, event: MemoryCandidateSelectionAuditEvent) -> None:
+        raise NotImplementedError
+
+
+class InMemoryMemoryCandidateSelectionAuditSink(MemoryCandidateSelectionAuditSink):
+    def __init__(self) -> None:
+        self._events: list[MemoryCandidateSelectionAuditEvent] = []
+
+    def record(self, event: MemoryCandidateSelectionAuditEvent) -> None:
+        self._events.append(event)
+
+    def list_events(self) -> tuple[MemoryCandidateSelectionAuditEvent, ...]:
+        return tuple(self._events)
+
+    def clear(self) -> tuple[MemoryCandidateSelectionAuditEvent, ...]:
+        events = tuple(self._events)
+        self._events.clear()
+        return events
