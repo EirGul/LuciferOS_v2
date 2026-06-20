@@ -398,20 +398,20 @@ class MemoryCommandExecutor:
             )
 
         if request.id != request_id:
-            return MemoryCommandExecutionResult(
-                status=MemoryCommandExecutionStatus.REJECTED,
-                message="Memory candidate selection request does not match the active request.",
+            return self._reject_memory_candidate_selection(
+                request=request,
                 command=self._selection_command(request),
+                reason="selection_request_id_mismatch",
+                message="Memory candidate selection request does not match the active request.",
             )
 
         selection = self.candidate_selector.select(request, memory_id)
         if selection.outcome != MemoryCandidateSelectionOutcome.SELECTED:
-            return MemoryCommandExecutionResult(
-                status=MemoryCommandExecutionStatus.REJECTED,
-                message=selection.explanation,
+            return self._reject_memory_candidate_selection(
+                request=request,
                 command=self._selection_command(request),
-                memories=tuple(candidate.memory for candidate in request.candidates),
-                selection_request=request,
+                reason="selection_candidate_id_invalid",
+                message=selection.explanation,
             )
 
         preparation = self.selection_pending_action_builder.prepare(request, selection)
@@ -432,6 +432,38 @@ class MemoryCommandExecutor:
             message="Selected memory target requires confirmation.",
             command=self._selection_command(request),
             pending_action=preparation.pending_action,
+        )
+
+    def _reject_memory_candidate_selection(
+        self,
+        request: MemoryCandidateSelectionRequest,
+        command: MemoryCommand,
+        reason: str,
+        message: str,
+    ) -> MemoryCommandExecutionResult:
+        event = MemoryCandidateSelectionAuditEvent(
+            action=MemoryCandidateSelectionAuditAction.CANDIDATE_REJECTED,
+            source="memory-command-executor",
+            selection_request_id=request.id,
+            command_type=request.command_type,
+            reason=reason,
+        )
+        delivery = self.selection_audit_delivery_service.deliver(event)
+        if delivery.failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=delivery.reason,
+                command=command,
+                memories=tuple(candidate.memory for candidate in request.candidates),
+                selection_request=request,
+            )
+
+        return MemoryCommandExecutionResult(
+            status=MemoryCommandExecutionStatus.REJECTED,
+            message=message,
+            command=command,
+            memories=tuple(candidate.memory for candidate in request.candidates),
+            selection_request=request,
         )
 
     def cancel_memory_candidate_selection(self) -> MemoryCommandExecutionResult:
