@@ -414,11 +414,48 @@ class MemoryCommandExecutor:
                 message=selection.explanation,
             )
 
+        accepted_event = MemoryCandidateSelectionAuditEvent(
+            action=MemoryCandidateSelectionAuditAction.CANDIDATE_ACCEPTED,
+            source="memory-command-executor",
+            selection_request_id=request.id,
+            command_type=request.command_type,
+            selected_memory_id=selection.selected_memory_id,
+            reason="selection_candidate_valid",
+        )
+        accepted_delivery = self.selection_audit_delivery_service.deliver(accepted_event)
+        if accepted_delivery.failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=accepted_delivery.reason,
+                command=self._selection_command(request),
+                memories=tuple(candidate.memory for candidate in request.candidates),
+                selection_request=request,
+            )
+
         preparation = self.selection_pending_action_builder.prepare(request, selection)
         if preparation.pending_action is None:
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
                 message=preparation.explanation,
+                command=self._selection_command(request),
+                memories=tuple(candidate.memory for candidate in request.candidates),
+                selection_request=request,
+            )
+
+        prepared_event = MemoryCandidateSelectionAuditEvent(
+            action=MemoryCandidateSelectionAuditAction.PENDING_ACTION_PREPARED,
+            source="memory-command-executor",
+            selection_request_id=request.id,
+            command_type=request.command_type,
+            selected_memory_id=selection.selected_memory_id,
+            pending_action_id=preparation.pending_action.id,
+            reason="selection_pending_action_prepared",
+        )
+        prepared_delivery = self.selection_audit_delivery_service.deliver(prepared_event)
+        if prepared_delivery.failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=prepared_delivery.reason,
                 command=self._selection_command(request),
                 memories=tuple(candidate.memory for candidate in request.candidates),
                 selection_request=request,
