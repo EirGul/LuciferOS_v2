@@ -319,6 +319,26 @@ class MemoryCommandExecutor:
             )
 
         if active_lifecycle.request is not None and not active_lifecycle.stale:
+            event = MemoryCandidateSelectionAuditEvent(
+                action=MemoryCandidateSelectionAuditAction.REQUEST_REJECTED,
+                source="memory-command-executor",
+                selection_request_id=active_lifecycle.request.id,
+                command_type=command.type,
+                reason="active_selection_exists",
+            )
+            delivery = self.selection_audit_delivery_service.deliver(event)
+            if delivery.failed:
+                return MemoryCommandExecutionResult(
+                    status=MemoryCommandExecutionStatus.REJECTED,
+                    message=delivery.reason,
+                    command=command,
+                    memories=tuple(
+                        candidate.memory
+                        for candidate in active_lifecycle.request.candidates
+                    ),
+                    selection_request=active_lifecycle.request,
+                )
+
             return MemoryCommandExecutionResult(
                 status=MemoryCommandExecutionStatus.REJECTED,
                 message=(
