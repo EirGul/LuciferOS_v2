@@ -528,7 +528,32 @@ class MemoryCommandExecutor:
                 command=self._selection_command(None),
             )
 
+        event = MemoryCandidateSelectionAuditEvent(
+            action=MemoryCandidateSelectionAuditAction.REQUEST_CANCELLED,
+            source="memory-command-executor",
+            selection_request_id=request.id,
+            command_type=request.command_type,
+            reason="selection_request_cancelled",
+        )
+        delivery = self.selection_audit_delivery_service.deliver(event)
+        if delivery.failed:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=delivery.reason,
+                command=self._selection_command(request),
+                memories=tuple(candidate.memory for candidate in request.candidates),
+                selection_request=request,
+            )
+
         result = self.selection_service.cancel_request()
+        if not result.cancelled:
+            return MemoryCommandExecutionResult(
+                status=MemoryCommandExecutionStatus.REJECTED,
+                message=result.reason,
+                command=self._selection_command(request),
+                selection_request=result.request,
+            )
+
         return MemoryCommandExecutionResult(
             status=MemoryCommandExecutionStatus.CANCELLED_USER_SELECTION,
             message=result.reason,
