@@ -97,6 +97,64 @@ class MemoryCandidateSelectionAuditEvent:
         return False
 
 
+class MemoryCandidateSelectionAuditDeliveryStatus(str, Enum):
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryCandidateSelectionAuditDeliveryResult:
+    status: MemoryCandidateSelectionAuditDeliveryStatus
+    event: MemoryCandidateSelectionAuditEvent
+    reason: str = ""
+
+    def __post_init__(self) -> None:
+        if self.status == MemoryCandidateSelectionAuditDeliveryStatus.FAILED:
+            if not self.reason.strip():
+                raise ValueError(
+                    "Failed memory candidate selection audit delivery requires a bounded reason."
+                )
+
+        if self.status == MemoryCandidateSelectionAuditDeliveryStatus.DELIVERED:
+            if self.reason:
+                raise ValueError(
+                    "Delivered memory candidate selection audit result must not include a failure reason."
+                )
+
+    @property
+    def delivered(self) -> bool:
+        return self.status == MemoryCandidateSelectionAuditDeliveryStatus.DELIVERED
+
+    @property
+    def failed(self) -> bool:
+        return self.status == MemoryCandidateSelectionAuditDeliveryStatus.FAILED
+
+
+class MemoryCandidateSelectionAuditDeliveryService:
+    FAILURE_REASON = "selection_audit_delivery_failed"
+
+    def __init__(self, sink: "MemoryCandidateSelectionAuditSink") -> None:
+        self.sink = sink
+
+    def deliver(
+        self,
+        event: MemoryCandidateSelectionAuditEvent,
+    ) -> MemoryCandidateSelectionAuditDeliveryResult:
+        try:
+            self.sink.record(event)
+        except Exception:
+            return MemoryCandidateSelectionAuditDeliveryResult(
+                status=MemoryCandidateSelectionAuditDeliveryStatus.FAILED,
+                event=event,
+                reason=self.FAILURE_REASON,
+            )
+
+        return MemoryCandidateSelectionAuditDeliveryResult(
+            status=MemoryCandidateSelectionAuditDeliveryStatus.DELIVERED,
+            event=event,
+        )
+
+
 class MemoryCandidateSelectionAuditSink(ABC):
     @abstractmethod
     def record(self, event: MemoryCandidateSelectionAuditEvent) -> None:
